@@ -1,4 +1,4 @@
-name: Windows.
+name: Windows Dispatch.
 
 on:
   workflow_dispatch:
