@@ -9,23 +9,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "lang/lang_keys.h"
 #include "platform/platform_notifications_manager.h"
 #include "platform/platform_specific.h"
-#include "lang/lang_keys.h"
 
 #include <QtWidgets/QApplication>
 
-// AyuGram includes
+// ViGram includes
 #include "ayu/ayu_settings.h"
-#include "ayu/ui/settings/settings_ayu.h"
 #include "ayu/features/streamer_mode/streamer_mode.h"
+#include "ayu/ui/settings/settings_ayu.h"
 #include "lang_auto.h"
 
 
 namespace Core {
 
-Tray::Tray() {
-}
+Tray::Tray() {}
 
 void Tray::create() {
 	rebuildMenu();
@@ -34,41 +33,40 @@ void Tray::create() {
 		_tray.createIcon();
 	}
 
-	Core::App().settings().workModeValue(
-	) | rpl::combine_previous(
-	) | rpl::start_with_next([=](WorkMode previous, WorkMode state) {
-		const auto wasHasIcon = (previous != WorkMode::WindowOnly);
-		const auto nowHasIcon = (state != WorkMode::WindowOnly);
-		if (wasHasIcon != nowHasIcon) {
-			if (nowHasIcon) {
-				_tray.createIcon();
-			} else {
-				_tray.destroyIcon();
-			}
-		}
-	}, _tray.lifetime());
+	Core::App().settings().workModeValue() | rpl::combine_previous() |
+		rpl::start_with_next(
+			[=](WorkMode previous, WorkMode state)
+			{
+				const auto wasHasIcon = (previous != WorkMode::WindowOnly);
+				const auto nowHasIcon = (state != WorkMode::WindowOnly);
+				if (wasHasIcon != nowHasIcon) {
+					if (nowHasIcon) {
+						_tray.createIcon();
+					} else {
+						_tray.destroyIcon();
+					}
+				}
+			},
+			_tray.lifetime());
 
-	Core::App().settings().trayIconMonochromeChanges(
-	) | rpl::start_with_next([=] {
-		updateIconCounters();
-	}, _tray.lifetime());
+	Core::App().settings().trayIconMonochromeChanges() |
+		rpl::start_with_next([=] { updateIconCounters(); }, _tray.lifetime());
 
-	Core::App().passcodeLockChanges(
-	) | rpl::start_with_next([=] {
-		rebuildMenu();
-	}, _tray.lifetime());
+	Core::App().passcodeLockChanges() | rpl::start_with_next([=] { rebuildMenu(); }, _tray.lifetime());
 
-	_tray.iconClicks(
-	) | rpl::start_with_next([=] {
-		const auto skipTrayClick = (_lastTrayClickTime > 0)
-			&& (crl::now() - _lastTrayClickTime
-				< QApplication::doubleClickInterval());
-		if (!skipTrayClick) {
-			_activeForTrayIconAction = Core::App().isActiveForTrayMenu();
-			_minimizeMenuItemClicks.fire({});
-			_lastTrayClickTime = crl::now();
-		}
-	}, _tray.lifetime());
+	_tray.iconClicks() |
+		rpl::start_with_next(
+			[=]
+			{
+				const auto skipTrayClick =
+					(_lastTrayClickTime > 0) && (crl::now() - _lastTrayClickTime < QApplication::doubleClickInterval());
+				if (!skipTrayClick) {
+					_activeForTrayIconAction = Core::App().isActiveForTrayMenu();
+					_minimizeMenuItemClicks.fire({});
+					_lastTrayClickTime = crl::now();
+				}
+			},
+			_tray.lifetime());
 }
 
 void Tray::rebuildMenu() {
@@ -76,123 +74,106 @@ void Tray::rebuildMenu() {
 	_tray.createMenu();
 
 	{
-		auto minimizeText = _textUpdates.events(
-		) | rpl::map([=] {
-			_activeForTrayIconAction = Core::App().isActiveForTrayMenu();
-			return _activeForTrayIconAction
-				? tr::lng_minimize_to_tray(tr::now)
-				: tr::lng_open_from_tray(tr::now).replace("Telegram", "AyuGram");
-		});
+		auto minimizeText = _textUpdates.events() |
+			rpl::map(
+								[=]
+								{
+									_activeForTrayIconAction = Core::App().isActiveForTrayMenu();
+									return _activeForTrayIconAction
+										? tr::lng_minimize_to_tray(tr::now)
+										: tr::lng_open_from_tray(tr::now).replace("Telegram", "ViGram");
+								});
 
-		_tray.addAction(
-			std::move(minimizeText),
-			[=] { _minimizeMenuItemClicks.fire({}); });
+		_tray.addAction(std::move(minimizeText), [=] { _minimizeMenuItemClicks.fire({}); });
 	}
 
 	if (!Core::App().passcodeLocked()) {
-		auto notificationsText = _textUpdates.events(
-		) | rpl::map([=] {
-			return Core::App().settings().desktopNotify()
-				? tr::lng_disable_notifications_from_tray(tr::now)
-				: tr::lng_enable_notifications_from_tray(tr::now);
-		});
+		auto notificationsText = _textUpdates.events() |
+			rpl::map(
+									 [=]
+									 {
+										 return Core::App().settings().desktopNotify()
+											 ? tr::lng_disable_notifications_from_tray(tr::now)
+											 : tr::lng_enable_notifications_from_tray(tr::now);
+									 });
 
-		_tray.addAction(
-			std::move(notificationsText),
-			[=] { toggleSoundNotifications(); });
+		_tray.addAction(std::move(notificationsText), [=] { toggleSoundNotifications(); });
 	}
 
 	auto settings = &AyuSettings::getInstance();
 
 	if (settings->showGhostToggleInTray) {
-		auto turnGhostModeText = _textUpdates.events(
-		) | rpl::map(
-			[=]
-			{
-				bool ghostModeEnabled = AyuSettings::isGhostModeActive();
+		auto turnGhostModeText = _textUpdates.events() |
+			rpl::map(
+									 [=]
+									 {
+										 bool ghostModeEnabled = AyuSettings::isGhostModeActive();
 
-				return ghostModeEnabled
-						   ? tr::ayu_DisableGhostModeTray(tr::now)
-						   : tr::ayu_EnableGhostModeTray(tr::now);
-			});
-		_tray.addAction(
-			std::move(turnGhostModeText),
-			[=]
-			{
-				bool ghostMode = AyuSettings::isGhostModeActive();
+										 return ghostModeEnabled ? tr::ayu_DisableGhostModeTray(tr::now)
+																 : tr::ayu_EnableGhostModeTray(tr::now);
+									 });
+		_tray.addAction(std::move(turnGhostModeText),
+						[=]
+						{
+							bool ghostMode = AyuSettings::isGhostModeActive();
 
-				settings->set_ghostModeEnabled(!ghostMode);
+							settings->set_ghostModeEnabled(!ghostMode);
 
-				AyuSettings::save();
-			});
+							AyuSettings::save();
+						});
 	}
 
 	if (settings->showStreamerToggleInTray) {
-		auto turnStreamerModeText = _textUpdates.events(
-		) | rpl::map(
-			[=]
-			{
-				bool streamerModeEnabled = AyuFeatures::StreamerMode::isEnabled();
+		auto turnStreamerModeText = _textUpdates.events() |
+			rpl::map(
+										[=]
+										{
+											bool streamerModeEnabled = AyuFeatures::StreamerMode::isEnabled();
 
-				return streamerModeEnabled
-						   ? tr::ayu_DisableStreamerModeTray(tr::now)
-						   : tr::ayu_EnableStreamerModeTray(tr::now);
-			});
-		_tray.addAction(
-			std::move(turnStreamerModeText),
-			[=]
-			{
-				if (AyuFeatures::StreamerMode::isEnabled()) {
-					AyuFeatures::StreamerMode::disable();
-				} else {
-					AyuFeatures::StreamerMode::enable();
-				}
-			});
+											return streamerModeEnabled ? tr::ayu_DisableStreamerModeTray(tr::now)
+																	   : tr::ayu_EnableStreamerModeTray(tr::now);
+										});
+		_tray.addAction(std::move(turnStreamerModeText),
+						[=]
+						{
+							if (AyuFeatures::StreamerMode::isEnabled()) {
+								AyuFeatures::StreamerMode::disable();
+							} else {
+								AyuFeatures::StreamerMode::enable();
+							}
+						});
 	}
 
-	auto quitText = _textUpdates.events(
-	) | rpl::map([=]
-	{
-		return tr::lng_quit_from_tray(tr::now).replace("Telegram", "AyuGram");
-	});
+	auto quitText =
+		_textUpdates.events() | rpl::map([=] { return tr::lng_quit_from_tray(tr::now).replace("Telegram", "ViGram"); });
 	_tray.addAction(std::move(quitText), [] { Core::Quit(); });
 
 	updateMenuText();
 }
 
-void Tray::updateMenuText() {
-	_textUpdates.fire({});
-}
+void Tray::updateMenuText() { _textUpdates.fire({}); }
 
-void Tray::updateIconCounters() {
-	_tray.updateIcon();
-}
+void Tray::updateIconCounters() { _tray.updateIcon(); }
 
-rpl::producer<> Tray::aboutToShowRequests() const {
-	return _tray.aboutToShowRequests();
-}
+rpl::producer<> Tray::aboutToShowRequests() const { return _tray.aboutToShowRequests(); }
 
 rpl::producer<> Tray::showFromTrayRequests() const {
-	return rpl::merge(
-		_tray.showFromTrayRequests(),
-		_minimizeMenuItemClicks.events() | rpl::filter([=] {
-			return !_activeForTrayIconAction;
-		})
-	);
+	return rpl::merge(_tray.showFromTrayRequests(),
+					  _minimizeMenuItemClicks.events() | rpl::filter([=] { return !_activeForTrayIconAction; }));
 }
 
 rpl::producer<> Tray::hideToTrayRequests() const {
-	auto triggers = rpl::merge(
-		_tray.hideToTrayRequests(),
-		_minimizeMenuItemClicks.events() | rpl::filter([=] {
-			return _activeForTrayIconAction;
-		})
-	);
+	auto triggers =
+		rpl::merge(_tray.hideToTrayRequests(),
+				   _minimizeMenuItemClicks.events() | rpl::filter([=] { return _activeForTrayIconAction; }));
 	if (_tray.hasTrayMessageSupport()) {
-		return std::move(triggers) | rpl::map([=]() -> rpl::empty_value {
-			_tray.showTrayMessage();
-			return {};
-		});
+		return std::move(triggers) |
+			rpl::map(
+				   [=]() -> rpl::empty_value
+				   {
+					   _tray.showTrayMessage();
+					   return {};
+				   });
 	} else {
 		return triggers;
 	}
@@ -204,14 +185,12 @@ void Tray::toggleSoundNotifications() {
 	auto &settings = Core::App().settings();
 	settings.setDesktopNotify(!settings.desktopNotify());
 	if (settings.desktopNotify()) {
-		if (settings.rememberedSoundNotifyFromTray()
-			&& !settings.soundNotify()) {
+		if (settings.rememberedSoundNotifyFromTray() && !settings.soundNotify()) {
 			settings.setSoundNotify(true);
 			settings.setRememberedSoundNotifyFromTray(false);
 			soundNotifyChanged = true;
 		}
-		if (settings.rememberedFlashBounceNotifyFromTray()
-			&& !settings.flashBounceNotify()) {
+		if (settings.rememberedFlashBounceNotifyFromTray() && !settings.flashBounceNotify()) {
 			settings.setFlashBounceNotify(true);
 			settings.setRememberedFlashBounceNotifyFromTray(false);
 			flashBounceNotifyChanged = true;
@@ -244,8 +223,6 @@ void Tray::toggleSoundNotifications() {
 	}
 }
 
-bool Tray::has() const {
-	return _tray.hasIcon() && Platform::TrayIconSupported();
-}
+bool Tray::has() const { return _tray.hasIcon() && Platform::TrayIconSupported(); }
 
 } // namespace Core

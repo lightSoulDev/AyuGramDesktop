@@ -7,23 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_replies_list.h"
 
+#include "apiwrap.h"
+#include "core/application.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
+#include "data/data_histories.h"
+#include "data/data_messages.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
-#include "main/main_session.h"
-#include "data/data_histories.h"
-#include "data/data_session.h"
-#include "data/data_changes.h"
-#include "data/data_channel.h"
-#include "data/data_messages.h"
-#include "data/data_forum.h"
-#include "data/data_forum_topic.h"
-#include "window/notifications_manager.h"
-#include "core/application.h"
 #include "lang/lang_keys.h"
-#include "apiwrap.h"
+#include "main/main_session.h"
+#include "window/notifications_manager.h"
 
-// AyuGram includes
+// ViGram includes
 #include "ayu/ayu_settings.h"
 
 
@@ -34,18 +34,17 @@ constexpr auto kMessagesPerPage = 50;
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
 constexpr auto kMaxMessagesToDeleteMyTopic = 10;
 
-[[nodiscard]] HistoryItem *GenerateDivider(
-		not_null<History*> history,
-		TimeId date,
-		const QString &text) {
-	return history->makeMessage({
-		.id = history->nextNonHistoryEntryId(),
-		.flags = MessageFlag::FakeHistoryItem,
-		.date = date,
-	}, PreparedServiceText{ { .text = text } });
+[[nodiscard]] HistoryItem *GenerateDivider(not_null<History *> history, TimeId date, const QString &text) {
+	return history->makeMessage(
+		{
+			.id = history->nextNonHistoryEntryId(),
+			.flags = MessageFlag::FakeHistoryItem,
+			.date = date,
+		},
+		PreparedServiceText{{.text = text}});
 }
 
-[[nodiscard]] bool IsCreating(not_null<History*> history, MsgId rootId) {
+[[nodiscard]] bool IsCreating(not_null<History *> history, MsgId rootId) {
 	if (const auto forum = history->asForum()) {
 		return forum->creating(rootId);
 	}
@@ -54,7 +53,8 @@ constexpr auto kMaxMessagesToDeleteMyTopic = 10;
 
 } // namespace
 
-struct RepliesList::Viewer {
+struct RepliesList::Viewer
+{
 	MessagesSlice slice;
 	MsgId around = 0;
 	int limitBefore = 0;
@@ -64,21 +64,18 @@ struct RepliesList::Viewer {
 	bool scheduled = false;
 };
 
-RepliesList::RepliesList(
-	not_null<History*> history,
-	MsgId rootId,
-	ForumTopic *owningTopic)
-: _history(history)
-, _owningTopic(owningTopic)
-, _rootId(rootId)
-, _creating(IsCreating(history, rootId))
-, _readRequestTimer([=] { sendReadTillRequest(); }) {
+RepliesList::RepliesList(not_null<History *> history, MsgId rootId, ForumTopic *owningTopic)
+	: _history(history), _owningTopic(owningTopic), _rootId(rootId), _creating(IsCreating(history, rootId)),
+	  _readRequestTimer([=] { sendReadTillRequest(); }) {
 	if (_owningTopic) {
-		_owningTopic->destroyed(
-		) | rpl::start_with_next([=] {
-			_owningTopic = nullptr;
-			subscribeToUpdates();
-		}, _lifetime);
+		_owningTopic->destroyed() |
+			rpl::start_with_next(
+				[=]
+				{
+					_owningTopic = nullptr;
+					subscribeToUpdates();
+				},
+				_lifetime);
 	} else {
 		subscribeToUpdates();
 	}
@@ -96,44 +93,35 @@ RepliesList::~RepliesList() {
 }
 
 void RepliesList::subscribeToUpdates() {
-	_history->owner().repliesReadTillUpdates(
-	) | rpl::filter([=](const RepliesReadTillUpdate &update) {
-		return (update.id.msg == _rootId)
-			&& (update.id.peer == _history->peer->id);
-	}) | rpl::start_with_next([=](const RepliesReadTillUpdate &update) {
-		apply(update);
-	}, _lifetime);
+	_history->owner().repliesReadTillUpdates() |
+		rpl::filter([=](const RepliesReadTillUpdate &update)
+					{ return (update.id.msg == _rootId) && (update.id.peer == _history->peer->id); }) |
+		rpl::start_with_next([=](const RepliesReadTillUpdate &update) { apply(update); }, _lifetime);
 
-	_history->session().changes().messageUpdates(
-		MessageUpdate::Flag::NewAdded
-		| MessageUpdate::Flag::NewMaybeAdded
-		| MessageUpdate::Flag::ReplyToTopAdded
-		| MessageUpdate::Flag::Destroyed
-	) | rpl::start_with_next([=](const MessageUpdate &update) {
-		apply(update);
-	}, _lifetime);
+	_history->session().changes().messageUpdates(MessageUpdate::Flag::NewAdded | MessageUpdate::Flag::NewMaybeAdded |
+												 MessageUpdate::Flag::ReplyToTopAdded |
+												 MessageUpdate::Flag::Destroyed) |
+		rpl::start_with_next([=](const MessageUpdate &update) { apply(update); }, _lifetime);
 
-	_history->session().changes().topicUpdates(
-		TopicUpdate::Flag::Creator
-	) | rpl::start_with_next([=](const TopicUpdate &update) {
-		apply(update);
-	}, _lifetime);
+	_history->session().changes().topicUpdates(TopicUpdate::Flag::Creator) |
+		rpl::start_with_next([=](const TopicUpdate &update) { apply(update); }, _lifetime);
 
-	_history->owner().channelDifferenceTooLong(
-	) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
-		if (channel == _history->peer) {
-			applyDifferenceTooLong();
-		}
-	}, _lifetime);
+	_history->owner().channelDifferenceTooLong() |
+		rpl::start_with_next(
+			[=](not_null<ChannelData *> channel)
+			{
+				if (channel == _history->peer) {
+					applyDifferenceTooLong();
+				}
+			},
+			_lifetime);
 }
 
 void RepliesList::apply(const RepliesReadTillUpdate &update) {
 	if (update.out) {
 		setOutboxReadTill(update.readTillId);
 	} else if (update.readTillId >= _inboxReadTillId) {
-		setInboxReadTill(
-			update.readTillId,
-			computeUnreadCountLocally(update.readTillId));
+		setInboxReadTill(update.readTillId, computeUnreadCountLocally(update.readTillId));
 	}
 }
 
@@ -144,8 +132,7 @@ void RepliesList::apply(const MessageUpdate &update) {
 }
 
 void RepliesList::apply(const TopicUpdate &update) {
-	if (update.topic->history() == _history
-		&& update.topic->rootId() == _rootId) {
+	if (update.topic->history() == _history && update.topic->rootId() == _rootId) {
 		if (update.flags & TopicUpdate::Flag::Creator) {
 			applyTopicCreator(update.topic->creatorId());
 		}
@@ -164,15 +151,14 @@ void RepliesList::applyTopicCreator(PeerId creatorId) {
 	}
 }
 
-rpl::producer<MessagesSlice> RepliesList::source(
-		MessagePosition aroundId,
-		int limitBefore,
-		int limitAfter) {
+rpl::producer<MessagesSlice> RepliesList::source(MessagePosition aroundId, int limitBefore, int limitAfter) {
 	const auto around = aroundId.fullId.msg;
-	return [=](auto consumer) {
+	return [=](auto consumer)
+	{
 		auto lifetime = rpl::lifetime();
 		const auto viewer = lifetime.make_state<Viewer>();
-		const auto push = [=] {
+		const auto push = [=]
+		{
 			if (viewer->scheduled) {
 				viewer->scheduled = false;
 				if (buildFromData(viewer)) {
@@ -181,11 +167,13 @@ rpl::producer<MessagesSlice> RepliesList::source(
 				}
 			}
 		};
-		const auto pushInstant = [=] {
+		const auto pushInstant = [=]
+		{
 			viewer->scheduled = true;
 			push();
 		};
-		const auto pushDelayed = [=] {
+		const auto pushDelayed = [=]
+		{
 			if (!viewer->scheduled) {
 				viewer->scheduled = true;
 				crl::on_main(&viewer->guard, push);
@@ -195,22 +183,16 @@ rpl::producer<MessagesSlice> RepliesList::source(
 		viewer->limitBefore = limitBefore;
 		viewer->limitAfter = limitAfter;
 
-		_history->session().changes().historyUpdates(
-			_history,
-			HistoryUpdate::Flag::ClientSideMessages
-		) | rpl::start_with_next(pushDelayed, lifetime);
+		_history->session().changes().historyUpdates(_history, HistoryUpdate::Flag::ClientSideMessages) |
+			rpl::start_with_next(pushDelayed, lifetime);
 
-		_history->session().changes().messageUpdates(
-			MessageUpdate::Flag::Destroyed
-		) | rpl::filter([=](const MessageUpdate &update) {
-			return applyItemDestroyed(viewer, update.item);
-		}) | rpl::start_with_next(pushDelayed, lifetime);
+		_history->session().changes().messageUpdates(MessageUpdate::Flag::Destroyed) |
+			rpl::filter([=](const MessageUpdate &update) { return applyItemDestroyed(viewer, update.item); }) |
+			rpl::start_with_next(pushDelayed, lifetime);
 
-		_listChanges.events(
-		) | rpl::start_with_next(pushDelayed, lifetime);
+		_listChanges.events() | rpl::start_with_next(pushDelayed, lifetime);
 
-		_instantChanges.events(
-		) | rpl::start_with_next(pushInstant, lifetime);
+		_instantChanges.events() | rpl::start_with_next(pushInstant, lifetime);
 
 		pushInstant();
 		return lifetime;
@@ -264,9 +246,7 @@ void RepliesList::appendClientSideMessages(MessagesSlice &slice) {
 				const auto checkId = slice.ids[to - 1].msg;
 				if (dates[to - 1] > date) {
 					continue;
-				} else if (dates[to - 1] < date
-					|| IsServerMsgId(checkId)
-					|| checkId < item->id) {
+				} else if (dates[to - 1] < date || IsServerMsgId(checkId) || checkId < item->id) {
 					break;
 				}
 			}
@@ -276,41 +256,29 @@ void RepliesList::appendClientSideMessages(MessagesSlice &slice) {
 	}
 }
 
-rpl::producer<int> RepliesList::fullCount() const {
-	return _fullCount.value() | rpl::filter_optional();
-}
+rpl::producer<int> RepliesList::fullCount() const { return _fullCount.value() | rpl::filter_optional(); }
 
-rpl::producer<std::optional<int>> RepliesList::maybeFullCount() const {
-	return _fullCount.value();
-}
+rpl::producer<std::optional<int>> RepliesList::maybeFullCount() const { return _fullCount.value(); }
 
-bool RepliesList::unreadCountKnown() const {
-	return _unreadCount.current().has_value();
-}
+bool RepliesList::unreadCountKnown() const { return _unreadCount.current().has_value(); }
 
-int RepliesList::unreadCountCurrent() const {
-	return _unreadCount.current().value_or(0);
-}
+int RepliesList::unreadCountCurrent() const { return _unreadCount.current().value_or(0); }
 
-rpl::producer<std::optional<int>> RepliesList::unreadCountValue() const {
-	return _unreadCount.value();
-}
+rpl::producer<std::optional<int>> RepliesList::unreadCountValue() const { return _unreadCount.value(); }
 
-void RepliesList::injectRootMessageAndReverse(not_null<Viewer*> viewer) {
+void RepliesList::injectRootMessageAndReverse(not_null<Viewer *> viewer) {
 	injectRootMessage(viewer);
 	ranges::reverse(viewer->slice.ids);
 }
 
-void RepliesList::injectRootMessage(not_null<Viewer*> viewer) {
+void RepliesList::injectRootMessage(not_null<Viewer *> viewer) {
 	const auto slice = &viewer->slice;
 	viewer->injectedForRoot = 0;
 	if (slice->skippedBefore != 0) {
 		return;
 	}
 	const auto root = lookupRoot();
-	if (!root
-		|| (_rootId == Data::ForumTopic::kGeneralId)
-		|| (root->topicRootId() != Data::ForumTopic::kGeneralId)) {
+	if (!root || (_rootId == Data::ForumTopic::kGeneralId) || (root->topicRootId() != Data::ForumTopic::kGeneralId)) {
 		return;
 	}
 	injectRootDivider(root, slice);
@@ -332,42 +300,31 @@ void RepliesList::injectRootMessage(not_null<Viewer*> viewer) {
 	}
 }
 
-void RepliesList::injectRootDivider(
-		not_null<HistoryItem*> root,
-		not_null<MessagesSlice*> slice) {
+void RepliesList::injectRootDivider(not_null<HistoryItem *> root, not_null<MessagesSlice *> slice) {
 	const auto withComments = !slice->ids.empty();
-	const auto text = [&] {
-		return withComments
-			? tr::lng_replies_discussion_started(tr::now)
-			: tr::lng_replies_no_comments(tr::now);
-	};
+	const auto text = [&]
+	{ return withComments ? tr::lng_replies_discussion_started(tr::now) : tr::lng_replies_no_comments(tr::now); };
 	if (!_divider) {
 		_dividerWithComments = withComments;
-		_divider = GenerateDivider(
-			_history,
-			root->date(),
-			text());
+		_divider = GenerateDivider(_history, root->date(), text());
 	} else if (_dividerWithComments != withComments) {
 		_dividerWithComments = withComments;
-		_divider->updateServiceText(PreparedServiceText{ { text() } });
+		_divider->updateServiceText(PreparedServiceText{{text()}});
 	}
 	slice->ids.push_back(_divider->fullId());
 }
 
-bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
-	if (_creating
-		|| (_list.empty() && _skippedBefore == 0 && _skippedAfter == 0)) {
+bool RepliesList::buildFromData(not_null<Viewer *> viewer) {
+	if (_creating || (_list.empty() && _skippedBefore == 0 && _skippedAfter == 0)) {
 		viewer->slice.ids.clear();
 		viewer->slice.nearestToAround = FullMsgId();
-		viewer->slice.fullCount
-			= viewer->slice.skippedBefore
-			= viewer->slice.skippedAfter
-			= 0;
+		viewer->slice.fullCount = viewer->slice.skippedBefore = viewer->slice.skippedAfter = 0;
 		viewer->injectedForRoot = 0;
 		injectRootMessageAndReverse(viewer);
 		return true;
 	}
-	const auto around = [&] {
+	const auto around = [&]
+	{
 		if (viewer->around != ShowAtUnreadMsgId) {
 			return viewer->around;
 		} else if (const auto item = lookupRoot()) {
@@ -385,28 +342,22 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 		}
 		return viewer->around;
 	}();
-	if (_list.empty()
-		|| (!around && _skippedAfter != 0)
-		|| (around > _list.front() && _skippedAfter != 0)
-		|| (around > 0 && around < _list.back() && _skippedBefore != 0)) {
+	if (_list.empty() || (!around && _skippedAfter != 0) || (around > _list.front() && _skippedAfter != 0) ||
+		(around > 0 && around < _list.back() && _skippedBefore != 0)) {
 		loadAround(around);
 		return false;
 	}
-	const auto i = around
-		? ranges::lower_bound(_list, around, std::greater<>())
-		: end(_list);
+	const auto i = around ? ranges::lower_bound(_list, around, std::greater<>()) : end(_list);
 	const auto availableBefore = int(end(_list) - i);
 	const auto availableAfter = int(i - begin(_list));
 	const auto useBefore = std::min(availableBefore, viewer->limitBefore + 1);
 	const auto useAfter = std::min(availableAfter, viewer->limitAfter);
 	const auto slice = &viewer->slice;
 	if (_skippedBefore.has_value()) {
-		slice->skippedBefore
-			= (*_skippedBefore + (availableBefore - useBefore));
+		slice->skippedBefore = (*_skippedBefore + (availableBefore - useBefore));
 	}
 	if (_skippedAfter.has_value()) {
-		slice->skippedAfter
-			= (*_skippedAfter + (availableAfter - useAfter));
+		slice->skippedAfter = (*_skippedAfter + (availableAfter - useAfter));
 	}
 
 	const auto peerId = _history->peer->id;
@@ -418,16 +369,12 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 		if (id == _rootId) {
 			continue;
 		} else if (!nearestToAround && id < around) {
-			nearestToAround = (j == i - useAfter)
-				? id
-				: *(j - 1);
+			nearestToAround = (j == i - useAfter) ? id : *(j - 1);
 		}
 		slice->ids.emplace_back(peerId, id);
 	}
-	slice->nearestToAround = FullMsgId(
-		peerId,
-		nearestToAround.value_or(
-			slice->ids.empty() ? 0 : slice->ids.back().msg));
+	slice->nearestToAround =
+		FullMsgId(peerId, nearestToAround.value_or(slice->ids.empty() ? 0 : slice->ids.back().msg));
 	slice->fullCount = _fullCount.current();
 
 	injectRootMessageAndReverse(viewer);
@@ -442,9 +389,7 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	return true;
 }
 
-bool RepliesList::applyItemDestroyed(
-		not_null<Viewer*> viewer,
-		not_null<HistoryItem*> item) {
+bool RepliesList::applyItemDestroyed(not_null<Viewer *> viewer, not_null<HistoryItem *> item) {
 	if (item->history() != _history || !item->isRegular()) {
 		return false;
 	}
@@ -460,9 +405,7 @@ bool RepliesList::applyItemDestroyed(
 bool RepliesList::applyUpdate(const MessageUpdate &update) {
 	using Flag = MessageUpdate::Flag;
 
-	if (update.item->history() != _history
-		|| !update.item->isRegular()
-		|| !update.item->inThread(_rootId)) {
+	if (update.item->history() != _history || !update.item->isRegular() || !update.item->inThread(_rootId)) {
 		return false;
 	}
 	const auto id = update.item->id;
@@ -488,8 +431,7 @@ bool RepliesList::applyUpdate(const MessageUpdate &update) {
 	if (added) {
 		changeUnreadCountByPost(id, 1);
 	}
-	if (_skippedAfter != 0
-		|| (i != end(_list) && *i == id)) {
+	if (_skippedAfter != 0 || (i != end(_list) && *i == id)) {
 		return false;
 	}
 	_list.insert(i, id);
@@ -519,13 +461,9 @@ void RepliesList::changeUnreadCountByPost(MsgId id, int delta) {
 	}
 }
 
-Histories &RepliesList::histories() {
-	return _history->owner().histories();
-}
+Histories &RepliesList::histories() { return _history->owner().histories(); }
 
-HistoryItem *RepliesList::lookupRoot() {
-	return _history->owner().message(_history->peer->id, _rootId);
-}
+HistoryItem *RepliesList::lookupRoot() { return _history->owner().message(_history->peer->id, _rootId); }
 
 void RepliesList::loadAround(MsgId id) {
 	Expects(!_creating);
@@ -536,51 +474,57 @@ void RepliesList::loadAround(MsgId id) {
 	histories().cancelRequest(base::take(_beforeId));
 	histories().cancelRequest(base::take(_afterId));
 
-	const auto send = [=](Fn<void()> finish) {
-		return _history->session().api().request(MTPmessages_GetReplies(
-			_history->peer->input,
-			MTP_int(_rootId),
-			MTP_int(id), // offset_id
-			MTP_int(0), // offset_date
-			MTP_int(id ? (-kMessagesPerPage / 2) : 0), // add_offset
-			MTP_int(kMessagesPerPage), // limit
-			MTP_int(0), // max_id
-			MTP_int(0), // min_id
-			MTP_long(0) // hash
-		)).done([=](const MTPmessages_Messages &result) {
-			_beforeId = 0;
-			_loadingAround = std::nullopt;
-			finish();
+	const auto send = [=](Fn<void()> finish)
+	{
+		return _history->session()
+			.api()
+			.request(MTPmessages_GetReplies(_history->peer->input,
+											MTP_int(_rootId),
+											MTP_int(id), // offset_id
+											MTP_int(0), // offset_date
+											MTP_int(id ? (-kMessagesPerPage / 2) : 0), // add_offset
+											MTP_int(kMessagesPerPage), // limit
+											MTP_int(0), // max_id
+											MTP_int(0), // min_id
+											MTP_long(0) // hash
+											))
+			.done(
+				[=](const MTPmessages_Messages &result)
+				{
+					_beforeId = 0;
+					_loadingAround = std::nullopt;
+					finish();
 
-			if (!id) {
-				_skippedAfter = 0;
-			} else {
-				_skippedAfter = std::nullopt;
-			}
-			_skippedBefore = std::nullopt;
-			_list.clear();
-			if (processMessagesIsEmpty(result)) {
-				_fullCount = _skippedBefore = _skippedAfter = 0;
-			} else if (id) {
-				Assert(!_list.empty());
-				if (_list.front() <= id) {
-					_skippedAfter = 0;
-				} else if (_list.back() >= id) {
-					_skippedBefore = 0;
-				}
-			}
-			checkReadTillEnd();
-		}).fail([=] {
-			_beforeId = 0;
-			_loadingAround = std::nullopt;
-			finish();
-		}).send();
+					if (!id) {
+						_skippedAfter = 0;
+					} else {
+						_skippedAfter = std::nullopt;
+					}
+					_skippedBefore = std::nullopt;
+					_list.clear();
+					if (processMessagesIsEmpty(result)) {
+						_fullCount = _skippedBefore = _skippedAfter = 0;
+					} else if (id) {
+						Assert(!_list.empty());
+						if (_list.front() <= id) {
+							_skippedAfter = 0;
+						} else if (_list.back() >= id) {
+							_skippedBefore = 0;
+						}
+					}
+					checkReadTillEnd();
+				})
+			.fail(
+				[=]
+				{
+					_beforeId = 0;
+					_loadingAround = std::nullopt;
+					finish();
+				})
+			.send();
 	};
 	_loadingAround = id;
-	_beforeId = histories().sendRequest(
-		_history,
-		Histories::RequestType::History,
-		send);
+	_beforeId = histories().sendRequest(_history, Histories::RequestType::History, send);
 }
 
 void RepliesList::loadBefore() {
@@ -593,40 +537,46 @@ void RepliesList::loadBefore() {
 	}
 
 	const auto last = _list.back();
-	const auto send = [=](Fn<void()> finish) {
-		return _history->session().api().request(MTPmessages_GetReplies(
-			_history->peer->input,
-			MTP_int(_rootId),
-			MTP_int(last), // offset_id
-			MTP_int(0), // offset_date
-			MTP_int(0), // add_offset
-			MTP_int(kMessagesPerPage), // limit
-			MTP_int(0), // min_id
-			MTP_int(0), // max_id
-			MTP_long(0) // hash
-		)).done([=](const MTPmessages_Messages &result) {
-			_beforeId = 0;
-			finish();
+	const auto send = [=](Fn<void()> finish)
+	{
+		return _history->session()
+			.api()
+			.request(MTPmessages_GetReplies(_history->peer->input,
+											MTP_int(_rootId),
+											MTP_int(last), // offset_id
+											MTP_int(0), // offset_date
+											MTP_int(0), // add_offset
+											MTP_int(kMessagesPerPage), // limit
+											MTP_int(0), // min_id
+											MTP_int(0), // max_id
+											MTP_long(0) // hash
+											))
+			.done(
+				[=](const MTPmessages_Messages &result)
+				{
+					_beforeId = 0;
+					finish();
 
-			if (_list.empty()) {
-				return;
-			} else if (_list.back() != last) {
-				loadBefore();
-			} else if (processMessagesIsEmpty(result)) {
-				_skippedBefore = 0;
-				if (_skippedAfter == 0) {
-					_fullCount = _list.size();
-				}
-			}
-		}).fail([=] {
-			_beforeId = 0;
-			finish();
-		}).send();
+					if (_list.empty()) {
+						return;
+					} else if (_list.back() != last) {
+						loadBefore();
+					} else if (processMessagesIsEmpty(result)) {
+						_skippedBefore = 0;
+						if (_skippedAfter == 0) {
+							_fullCount = _list.size();
+						}
+					}
+				})
+			.fail(
+				[=]
+				{
+					_beforeId = 0;
+					finish();
+				})
+			.send();
 	};
-	_beforeId = histories().sendRequest(
-		_history,
-		Histories::RequestType::History,
-		send);
+	_beforeId = histories().sendRequest(_history, Histories::RequestType::History, send);
 }
 
 void RepliesList::loadAfter() {
@@ -637,77 +587,87 @@ void RepliesList::loadAfter() {
 	}
 
 	const auto first = _list.front();
-	const auto send = [=](Fn<void()> finish) {
-		return _history->session().api().request(MTPmessages_GetReplies(
-			_history->peer->input,
-			MTP_int(_rootId),
-			MTP_int(first + 1), // offset_id
-			MTP_int(0), // offset_date
-			MTP_int(-kMessagesPerPage), // add_offset
-			MTP_int(kMessagesPerPage), // limit
-			MTP_int(0), // min_id
-			MTP_int(0), // max_id
-			MTP_long(0) // hash
-		)).done([=](const MTPmessages_Messages &result) {
-			_afterId = 0;
-			finish();
+	const auto send = [=](Fn<void()> finish)
+	{
+		return _history->session()
+			.api()
+			.request(MTPmessages_GetReplies(_history->peer->input,
+											MTP_int(_rootId),
+											MTP_int(first + 1), // offset_id
+											MTP_int(0), // offset_date
+											MTP_int(-kMessagesPerPage), // add_offset
+											MTP_int(kMessagesPerPage), // limit
+											MTP_int(0), // min_id
+											MTP_int(0), // max_id
+											MTP_long(0) // hash
+											))
+			.done(
+				[=](const MTPmessages_Messages &result)
+				{
+					_afterId = 0;
+					finish();
 
-			if (_list.empty()) {
-				return;
-			} else if (_list.front() != first) {
-				loadAfter();
-			} else if (processMessagesIsEmpty(result)) {
-				_skippedAfter = 0;
-				if (_skippedBefore == 0) {
-					_fullCount = _list.size();
-				}
-				checkReadTillEnd();
-			}
-		}).fail([=] {
-			_afterId = 0;
-			finish();
-		}).send();
+					if (_list.empty()) {
+						return;
+					} else if (_list.front() != first) {
+						loadAfter();
+					} else if (processMessagesIsEmpty(result)) {
+						_skippedAfter = 0;
+						if (_skippedBefore == 0) {
+							_fullCount = _list.size();
+						}
+						checkReadTillEnd();
+					}
+				})
+			.fail(
+				[=]
+				{
+					_afterId = 0;
+					finish();
+				})
+			.send();
 	};
-	_afterId = histories().sendRequest(
-		_history,
-		Histories::RequestType::History,
-		send);
+	_afterId = histories().sendRequest(_history, Histories::RequestType::History, send);
 }
 
 bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	const auto guard = gsl::finally([&] { _listChanges.fire({}); });
 
 	auto &owner = _history->owner();
-	const auto list = result.match([&](
-			const MTPDmessages_messagesNotModified &) {
-		LOG(("API Error: received messages.messagesNotModified! "
-			"(HistoryWidget::messagesReceived)"));
-		return QVector<MTPMessage>();
-	}, [&](const auto &data) {
-		owner.processUsers(data.vusers());
-		owner.processChats(data.vchats());
-		return data.vmessages().v;
-	});
+	const auto list = result.match(
+		[&](const MTPDmessages_messagesNotModified &)
+		{
+			LOG(("API Error: received messages.messagesNotModified! "
+				 "(HistoryWidget::messagesReceived)"));
+			return QVector<MTPMessage>();
+		},
+		[&](const auto &data)
+		{
+			owner.processUsers(data.vusers());
+			owner.processChats(data.vchats());
+			return data.vmessages().v;
+		});
 
-	const auto fullCount = result.match([&](
-			const MTPDmessages_messagesNotModified &) {
-		LOG(("API Error: received messages.messagesNotModified! "
-			"(HistoryWidget::messagesReceived)"));
-		return 0;
-	}, [&](const MTPDmessages_messages &data) {
-		return int(data.vmessages().v.size());
-	}, [&](const MTPDmessages_messagesSlice &data) {
-		return data.vcount().v;
-	}, [&](const MTPDmessages_channelMessages &data) {
-		if (const auto channel = _history->peer->asChannel()) {
-			channel->ptsReceived(data.vpts().v);
-			channel->processTopics(data.vtopics());
-		} else {
-			LOG(("API Error: received messages.channelMessages when "
-				"no channel was passed! (HistoryWidget::messagesReceived)"));
-		}
-		return data.vcount().v;
-	});
+	const auto fullCount = result.match(
+		[&](const MTPDmessages_messagesNotModified &)
+		{
+			LOG(("API Error: received messages.messagesNotModified! "
+				 "(HistoryWidget::messagesReceived)"));
+			return 0;
+		},
+		[&](const MTPDmessages_messages &data) { return int(data.vmessages().v.size()); },
+		[&](const MTPDmessages_messagesSlice &data) { return data.vcount().v; },
+		[&](const MTPDmessages_channelMessages &data)
+		{
+			if (const auto channel = _history->peer->asChannel()) {
+				channel->ptsReceived(data.vpts().v);
+				channel->processTopics(data.vtopics());
+			} else {
+				LOG(("API Error: received messages.channelMessages when "
+					 "no channel was passed! (HistoryWidget::messagesReceived)"));
+			}
+			return data.vcount().v;
+		});
 
 	if (list.isEmpty()) {
 		return true;
@@ -746,17 +706,13 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	const auto nowSize = int(_list.size());
 	auto &decrementFrom = toFront ? _skippedAfter : _skippedBefore;
 	if (decrementFrom.has_value()) {
-		*decrementFrom = std::max(
-			*decrementFrom - (nowSize - wasSize),
-			0);
+		*decrementFrom = std::max(*decrementFrom - (nowSize - wasSize), 0);
 	}
 
 	const auto checkedCount = std::max(fullCount - skipped, nowSize);
 	if (_skippedBefore && _skippedAfter) {
 		auto &correct = toFront ? _skippedBefore : _skippedAfter;
-		*correct = std::max(
-			checkedCount - *decrementFrom - nowSize,
-			0);
+		*correct = std::max(checkedCount - *decrementFrom - nowSize, 0);
 		*decrementFrom = checkedCount - *correct - nowSize;
 		Assert(*decrementFrom >= 0);
 	} else if (_skippedBefore) {
@@ -784,9 +740,7 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	return (list.size() == skipped);
 }
 
-void RepliesList::setInboxReadTill(
-		MsgId readTillId,
-		std::optional<int> unreadCount) {
+void RepliesList::setInboxReadTill(MsgId readTillId, std::optional<int> unreadCount) {
 	const auto newReadTillId = std::max(readTillId.bare, int64(1));
 	const auto ignore = (newReadTillId < _inboxReadTillId);
 	if (ignore) {
@@ -796,21 +750,16 @@ void RepliesList::setInboxReadTill(
 	if (changed) {
 		_inboxReadTillId = newReadTillId;
 	}
-	if (_skippedAfter == 0
-		&& !_list.empty()
-		&& _inboxReadTillId >= _list.front()) {
+	if (_skippedAfter == 0 && !_list.empty() && _inboxReadTillId >= _list.front()) {
 		unreadCount = 0;
 	}
 	const auto wasUnreadCount = _unreadCount;
-	if (_unreadCount.current() != unreadCount
-		&& (changed || unreadCount.has_value())) {
+	if (_unreadCount.current() != unreadCount && (changed || unreadCount.has_value())) {
 		setUnreadCount(unreadCount);
 	}
 }
 
-MsgId RepliesList::inboxReadTillId() const {
-	return _inboxReadTillId;
-}
+MsgId RepliesList::inboxReadTillId() const { return _inboxReadTillId; }
 
 MsgId RepliesList::computeInboxReadTillFull() const {
 	const auto local = _inboxReadTillId;
@@ -826,9 +775,7 @@ void RepliesList::setOutboxReadTill(MsgId readTillId) {
 	const auto newReadTillId = std::max(readTillId.bare, int64(1));
 	if (newReadTillId > _outboxReadTillId) {
 		_outboxReadTillId = newReadTillId;
-		_history->session().changes().historyUpdated(
-			_history,
-			HistoryUpdate::Flag::OutboxRead);
+		_history->session().changes().historyUpdated(_history, HistoryUpdate::Flag::OutboxRead);
 	}
 }
 
@@ -849,45 +796,31 @@ void RepliesList::setUnreadCount(std::optional<int> count) {
 	}
 }
 
-int RepliesList::displayedUnreadCount() const {
-	return (_inboxReadTillId > 1) ? unreadCountCurrent() : 0;
-}
+int RepliesList::displayedUnreadCount() const { return (_inboxReadTillId > 1) ? unreadCountCurrent() : 0; }
 
-bool RepliesList::isServerSideUnread(
-		not_null<const HistoryItem*> item) const {
-	const auto till = item->out()
-		? computeOutboxReadTillFull()
-		: computeInboxReadTillFull();
+bool RepliesList::isServerSideUnread(not_null<const HistoryItem *> item) const {
+	const auto till = item->out() ? computeOutboxReadTillFull() : computeInboxReadTillFull();
 	return (item->id > till);
 }
 
 void RepliesList::checkReadTillEnd() {
-	if (_unreadCount.current() != 0
-		&& _skippedAfter == 0
-		&& !_list.empty()
-		&& _inboxReadTillId >= _list.front()) {
+	if (_unreadCount.current() != 0 && _skippedAfter == 0 && !_list.empty() && _inboxReadTillId >= _list.front()) {
 		setUnreadCount(0);
 	}
 }
 
-std::optional<int> RepliesList::computeUnreadCountLocally(
-		MsgId afterId) const {
+std::optional<int> RepliesList::computeUnreadCountLocally(MsgId afterId) const {
 	Expects(afterId >= _inboxReadTillId);
 
 	const auto currentUnreadCountAfter = _unreadCount.current();
-	const auto startingMarkingAsRead = (currentUnreadCountAfter == 0)
-		&& (_inboxReadTillId == 1)
-		&& (afterId > 1);
-	const auto wasUnreadCountAfter = startingMarkingAsRead
-		? _fullCount.current().value_or(0)
-		: currentUnreadCountAfter;
+	const auto startingMarkingAsRead = (currentUnreadCountAfter == 0) && (_inboxReadTillId == 1) && (afterId > 1);
+	const auto wasUnreadCountAfter = startingMarkingAsRead ? _fullCount.current().value_or(0) : currentUnreadCountAfter;
 	const auto readTillId = std::max(afterId, _rootId);
 	const auto wasReadTillId = _inboxReadTillId;
 	const auto backLoaded = (_skippedBefore == 0);
 	const auto frontLoaded = (_skippedAfter == 0);
 	const auto fullLoaded = backLoaded && frontLoaded;
-	const auto allUnread = (readTillId == _rootId)
-		|| (fullLoaded && _list.empty());
+	const auto allUnread = (readTillId == _rootId) || (fullLoaded && _list.empty());
 	if (allUnread && fullLoaded) {
 		// Should not happen too often unless the list is empty.
 		return int(_list.size());
@@ -899,23 +832,14 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 		return wasUnreadCountAfter;
 	} else if (frontLoaded && !_list.empty() && readTillId >= _list.back()) {
 		// And count by local data if it is available and read-till changed.
-		return int(ranges::lower_bound(_list, readTillId, std::greater<>())
-			- begin(_list));
+		return int(ranges::lower_bound(_list, readTillId, std::greater<>()) - begin(_list));
 	} else if (_list.empty()) {
 		return std::nullopt;
-	} else if (wasUnreadCountAfter.has_value()
-		&& (frontLoaded || readTillId <= _list.front())
-		&& (backLoaded || wasReadTillId >= _list.back())) {
+	} else if (wasUnreadCountAfter.has_value() && (frontLoaded || readTillId <= _list.front()) &&
+			   (backLoaded || wasReadTillId >= _list.back())) {
 		// Count how many were read since previous value.
-		const auto from = ranges::lower_bound(
-			_list,
-			readTillId,
-			std::greater<>());
-		const auto till = ranges::lower_bound(
-			from,
-			end(_list),
-			wasReadTillId,
-			std::greater<>());
+		const auto from = ranges::lower_bound(_list, readTillId, std::greater<>());
+		const auto till = ranges::lower_bound(from, end(_list), wasReadTillId, std::greater<>());
 		return std::max(*wasUnreadCountAfter - int(till - from), 0);
 	}
 	return std::nullopt;
@@ -928,9 +852,8 @@ void RepliesList::requestUnreadCount() {
 	const auto weak = base::make_weak(this);
 	const auto session = &_history->session();
 	const auto fullId = FullMsgId(_history->peer->id, _rootId);
-	const auto apply = [weak, session, fullId](
-			MsgId readTill,
-			int unreadCount) {
+	const auto apply = [weak, session, fullId](MsgId readTill, int unreadCount)
+	{
 		if (const auto strong = weak.get()) {
 			strong->setInboxReadTill(readTill, unreadCount);
 		}
@@ -940,35 +863,31 @@ void RepliesList::requestUnreadCount() {
 			}
 		}
 	};
-	_reloadUnreadCountRequestId = session->api().request(
-		MTPmessages_GetDiscussionMessage(
-			_history->peer->input,
-			MTP_int(_rootId))
-	).done([=](const MTPmessages_DiscussionMessage &result) {
-		if (weak) {
-			_reloadUnreadCountRequestId = 0;
-		}
-		result.match([&](const MTPDmessages_discussionMessage &data) {
-			session->data().processUsers(data.vusers());
-			session->data().processChats(data.vchats());
-			apply(
-				data.vread_inbox_max_id().value_or_empty(),
-				data.vunread_count().v);
-		});
-	}).send();
+	_reloadUnreadCountRequestId =
+		session->api()
+			.request(MTPmessages_GetDiscussionMessage(_history->peer->input, MTP_int(_rootId)))
+			.done(
+				[=](const MTPmessages_DiscussionMessage &result)
+				{
+					if (weak) {
+						_reloadUnreadCountRequestId = 0;
+					}
+					result.match(
+						[&](const MTPDmessages_discussionMessage &data)
+						{
+							session->data().processUsers(data.vusers());
+							session->data().processChats(data.vchats());
+							apply(data.vread_inbox_max_id().value_or_empty(), data.vunread_count().v);
+						});
+				})
+			.send();
 }
 
-void RepliesList::readTill(not_null<HistoryItem*> item) {
-	readTill(item->id, item);
-}
+void RepliesList::readTill(not_null<HistoryItem *> item) { readTill(item->id, item); }
 
-void RepliesList::readTill(MsgId tillId) {
-	readTill(tillId, _history->owner().message(_history->peer->id, tillId));
-}
+void RepliesList::readTill(MsgId tillId) { readTill(tillId, _history->owner().message(_history->peer->id, tillId)); }
 
-void RepliesList::readTill(
-		MsgId tillId,
-		HistoryItem *tillIdItem) {
+void RepliesList::readTill(MsgId tillId, HistoryItem *tillIdItem) {
 	if (!IsServerMsgId(tillId)) {
 		return;
 	}
@@ -1011,13 +930,14 @@ void RepliesList::sendReadTillRequest() {
 	}
 
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
-		_history->peer->input,
-		MTP_int(_rootId),
-		MTP_int(computeInboxReadTillFull())
-	)).done(crl::guard(this, [=] {
-		_readRequestId = 0;
-		reloadUnreadCountIfNeeded();
-	})).send();
+									  _history->peer->input, MTP_int(_rootId), MTP_int(computeInboxReadTillFull())))
+						 .done(crl::guard(this,
+										  [=]
+										  {
+											  _readRequestId = 0;
+											  reloadUnreadCountIfNeeded();
+										  }))
+						 .send();
 }
 
 void RepliesList::reloadUnreadCountIfNeeded() {

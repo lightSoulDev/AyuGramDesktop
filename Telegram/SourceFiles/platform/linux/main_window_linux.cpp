@@ -7,39 +7,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/main_window_linux.h"
 
-#include "styles/style_window.h"
-#include "platform/linux/specific_linux.h"
-#include "history/history.h"
-#include "history/history_widget.h"
-#include "history/history_inner_widget.h"
-#include "main/main_account.h" // Account::sessionChanges.
-#include "main/main_session.h"
-#include "mainwindow.h"
+#include "base/event_filter.h"
+#include "base/platform/base_platform_info.h"
+#include "boxes/about_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/sandbox.h"
-#include "boxes/peer_list_controllers.h"
-#include "boxes/about_box.h"
+#include "history/history.h"
+#include "history/history_inner_widget.h"
+#include "history/history_widget.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h" // Account::sessionChanges.
+#include "main/main_session.h"
+#include "mainwindow.h"
+#include "platform/linux/specific_linux.h"
 #include "storage/localstorage.h"
+#include "styles/style_window.h"
+#include "ui/platform/ui_platform_window_title.h"
+#include "ui/ui_utility.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "base/platform/base_platform_info.h"
-#include "base/event_filter.h"
-#include "ui/platform/ui_platform_window_title.h"
-#include "ui/widgets/popup_menu.h"
-#include "ui/widgets/fields/input_field.h"
-#include "ui/ui_utility.h"
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 #include "base/platform/linux/base_linux_xcb_utilities.h"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
-#include <QtCore/QSize>
 #include <QtCore/QMimeData>
+#include <QtCore/QSize>
 #include <QtGui/QWindow>
-#include <QtWidgets/QMenuBar>
 #include <QtWidgets/QLineEdit>
+#include <QtWidgets/QMenuBar>
 #include <QtWidgets/QTextEdit>
 
 #include <gio/gio.hpp>
@@ -61,17 +61,13 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 		return;
 	}
 
-	const auto stateAtom = base::Platform::XCB::GetAtom(
-		connection,
-		"_NET_WM_STATE");
+	const auto stateAtom = base::Platform::XCB::GetAtom(connection, "_NET_WM_STATE");
 
 	if (!stateAtom) {
 		return;
 	}
 
-	const auto skipTaskbarAtom = base::Platform::XCB::GetAtom(
-		connection,
-		"_NET_WM_STATE_SKIP_TASKBAR");
+	const auto skipTaskbarAtom = base::Platform::XCB::GetAtom(connection, "_NET_WM_STATE_SKIP_TASKBAR");
 
 	if (!skipTaskbarAtom) {
 		return;
@@ -89,16 +85,13 @@ void XCBSkipTaskbar(QWindow *window, bool skip) {
 	xev.data.data32[3] = 0;
 	xev.data.data32[4] = 0;
 
-	free(
-		xcb_request_check(
-			connection,
-			xcb_send_event_checked(
-				connection,
-				false,
-				root,
-				XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
-					| XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
-				reinterpret_cast<const char*>(&xev))));
+	free(xcb_request_check(
+		connection,
+		xcb_send_event_checked(connection,
+							   false,
+							   root,
+							   XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+							   reinterpret_cast<const char *>(&xev))));
 }
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
@@ -111,19 +104,12 @@ void SkipTaskbar(QWindow *window, bool skip) {
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
-void SendKeySequence(
-		Qt::Key key,
-		Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+void SendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
 	const auto focused = QApplication::focusWidget();
-	if (qobject_cast<QLineEdit*>(focused)
-		|| qobject_cast<QTextEdit*>(focused)
-		|| dynamic_cast<HistoryInner*>(focused)) {
-		QApplication::postEvent(
-			focused,
-			new QKeyEvent(QEvent::KeyPress, key, modifiers));
-		QApplication::postEvent(
-			focused,
-			new QKeyEvent(QEvent::KeyRelease, key, modifiers));
+	if (qobject_cast<QLineEdit *>(focused) || qobject_cast<QTextEdit *>(focused) ||
+		dynamic_cast<HistoryInner *>(focused)) {
+		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifiers));
+		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifiers));
 	}
 }
 
@@ -137,9 +123,7 @@ void ForceDisabled(QAction *action, bool disabled) {
 
 } // namespace
 
-MainWindow::MainWindow(not_null<Window::Controller*> controller)
-: Window::MainWindow(controller) {
-}
+MainWindow::MainWindow(not_null<Window::Controller *> controller) : Window::MainWindow(controller) {}
 
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 	if (!TrayIconSupported()) {
@@ -149,14 +133,10 @@ void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 	SkipTaskbar(windowHandle(), mode == WorkMode::TrayOnly);
 }
 
-void MainWindow::unreadCounterChangedHook() {
-	updateUnityCounter();
-}
+void MainWindow::unreadCounterChangedHook() { updateUnityCounter(); }
 
 void MainWindow::updateWindowIcon() {
-	const auto session = sessionController()
-		? &sessionController()->session()
-		: nullptr;
+	const auto session = sessionController() ? &sessionController()->session() : nullptr;
 	setWindowIcon(Window::CreateIcon(session));
 }
 
@@ -166,7 +146,8 @@ void MainWindow::updateUnityCounter() {
 #else // Qt >= 6.6.0
 	using namespace gi::repository;
 
-	static const auto djbStringHash = [](const std::string &string) {
+	static const auto djbStringHash = [](const std::string &string)
+	{
 		uint hash = 5381;
 		for (const auto &curChar : string) {
 			hash = (hash << 5) + hash + curChar;
@@ -174,9 +155,7 @@ void MainWindow::updateUnityCounter() {
 		return hash;
 	};
 
-	const auto launcherUrl = "application://"
-		+ QGuiApplication::desktopFileName().toStdString()
-		+ ".desktop";
+	const auto launcherUrl = "application://" + QGuiApplication::desktopFileName().toStdString() + ".desktop";
 
 	const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
 
@@ -187,28 +166,24 @@ void MainWindow::updateUnityCounter() {
 
 	connection.emit_signal(
 		{},
-		"/com/canonical/unity/launcherentry/"
-			+ std::to_string(djbStringHash(launcherUrl)),
+		"/com/canonical/unity/launcherentry/" + std::to_string(djbStringHash(launcherUrl)),
 		"com.canonical.Unity.LauncherEntry",
 		"Update",
 		GLib::Variant::new_tuple({
 			GLib::Variant::new_string(launcherUrl),
 			GLib::Variant::new_array({
-				GLib::Variant::new_dict_entry(
-					GLib::Variant::new_string("count"),
-					GLib::Variant::new_variant(
-						GLib::Variant::new_int64(counterSlice))),
-				GLib::Variant::new_dict_entry(
-					GLib::Variant::new_string("count-visible"),
-					GLib::Variant::new_variant(
-						GLib::Variant::new_boolean(counterSlice))),
+				GLib::Variant::new_dict_entry(GLib::Variant::new_string("count"),
+											  GLib::Variant::new_variant(GLib::Variant::new_int64(counterSlice))),
+				GLib::Variant::new_dict_entry(GLib::Variant::new_string("count-visible"),
+											  GLib::Variant::new_variant(GLib::Variant::new_boolean(counterSlice))),
 			}),
 		}));
 #endif // Qt < 6.6.0
 }
 
 void MainWindow::createGlobalMenu() {
-	const auto ensureWindowShown = [=] {
+	const auto ensureWindowShown = [=]
+	{
 		if (isHidden()) {
 			showFromTray();
 		}
@@ -219,16 +194,16 @@ void MainWindow::createGlobalMenu() {
 
 	auto file = psMainMenu->addMenu(tr::lng_mac_menu_file(tr::now));
 
-	psLogout = file->addAction(
-		tr::lng_mac_menu_logout(tr::now),
-		this,
-		[=] {
-			ensureWindowShown();
-			controller().showLogoutConfirmation();
-		});
+	psLogout = file->addAction(tr::lng_mac_menu_logout(tr::now),
+							   this,
+							   [=]
+							   {
+								   ensureWindowShown();
+								   controller().showLogoutConfirmation();
+							   });
 
 	auto quit = file->addAction(
-		tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, u"AyuGram"_q),
+		tr::lng_mac_menu_quit_telegram(tr::now, lt_telegram, u"ViGram"_q),
 		this,
 		[=] { quitFromTray(); },
 		QKeySequence::Quit);
@@ -239,19 +214,13 @@ void MainWindow::createGlobalMenu() {
 	auto edit = psMainMenu->addMenu(tr::lng_mac_menu_edit(tr::now));
 
 	psUndo = edit->addAction(
-		tr::lng_linux_menu_undo(tr::now),
-		[] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
-		QKeySequence::Undo);
+		tr::lng_linux_menu_undo(tr::now), [] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); }, QKeySequence::Undo);
 
 	psUndo->setShortcutContext(Qt::WidgetShortcut);
 
 	psRedo = edit->addAction(
 		tr::lng_linux_menu_redo(tr::now),
-		[] {
-			SendKeySequence(
-				Qt::Key_Z,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
+		[] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier | Qt::ShiftModifier); },
 		QKeySequence::Redo);
 
 	psRedo->setShortcutContext(Qt::WidgetShortcut);
@@ -259,23 +228,17 @@ void MainWindow::createGlobalMenu() {
 	edit->addSeparator();
 
 	psCut = edit->addAction(
-		tr::lng_mac_menu_cut(tr::now),
-		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
-		QKeySequence::Cut);
+		tr::lng_mac_menu_cut(tr::now), [] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); }, QKeySequence::Cut);
 
 	psCut->setShortcutContext(Qt::WidgetShortcut);
 
 	psCopy = edit->addAction(
-		tr::lng_mac_menu_copy(tr::now),
-		[] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
-		QKeySequence::Copy);
+		tr::lng_mac_menu_copy(tr::now), [] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); }, QKeySequence::Copy);
 
 	psCopy->setShortcutContext(Qt::WidgetShortcut);
 
 	psPaste = edit->addAction(
-		tr::lng_mac_menu_paste(tr::now),
-		[] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
-		QKeySequence::Paste);
+		tr::lng_mac_menu_paste(tr::now), [] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); }, QKeySequence::Paste);
 
 	psPaste->setShortcutContext(Qt::WidgetShortcut);
 
@@ -311,44 +274,28 @@ void MainWindow::createGlobalMenu() {
 
 	psStrikeOut = edit->addAction(
 		tr::lng_menu_formatting_strike_out(tr::now),
-		[] {
-			SendKeySequence(
-				Qt::Key_X,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
+		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier | Qt::ShiftModifier); },
 		Ui::kStrikeOutSequence);
 
 	psStrikeOut->setShortcutContext(Qt::WidgetShortcut);
 
 	psBlockquote = edit->addAction(
 		tr::lng_menu_formatting_blockquote(tr::now),
-		[] {
-			SendKeySequence(
-				Qt::Key_Period,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
+		[] { SendKeySequence(Qt::Key_Period, Qt::ControlModifier | Qt::ShiftModifier); },
 		Ui::kBlockquoteSequence);
 
 	psBlockquote->setShortcutContext(Qt::WidgetShortcut);
 
 	psMonospace = edit->addAction(
 		tr::lng_menu_formatting_monospace(tr::now),
-		[] {
-			SendKeySequence(
-				Qt::Key_M,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
+		[] { SendKeySequence(Qt::Key_M, Qt::ControlModifier | Qt::ShiftModifier); },
 		Ui::kMonospaceSequence);
 
 	psMonospace->setShortcutContext(Qt::WidgetShortcut);
 
 	psClearFormat = edit->addAction(
 		tr::lng_menu_formatting_clear(tr::now),
-		[] {
-			SendKeySequence(
-				Qt::Key_N,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
+		[] { SendKeySequence(Qt::Key_N, Qt::ControlModifier | Qt::ShiftModifier); },
 		Ui::kClearFormatSequence);
 
 	psClearFormat->setShortcutContext(Qt::WidgetShortcut);
@@ -367,7 +314,8 @@ void MainWindow::createGlobalMenu() {
 	auto prefs = edit->addAction(
 		tr::lng_mac_menu_preferences(tr::now),
 		this,
-		[=] {
+		[=]
+		{
 			ensureWindowShown();
 			controller().showSettings();
 		},
@@ -378,61 +326,58 @@ void MainWindow::createGlobalMenu() {
 
 	auto tools = psMainMenu->addMenu(tr::lng_linux_menu_tools(tr::now));
 
-	psContacts = tools->addAction(
-		tr::lng_mac_menu_contacts(tr::now),
-		crl::guard(this, [=] {
-			if (isHidden()) {
-				showFromTray();
-			}
+	psContacts = tools->addAction(tr::lng_mac_menu_contacts(tr::now),
+								  crl::guard(this,
+											 [=]
+											 {
+												 if (isHidden()) {
+													 showFromTray();
+												 }
 
-			if (!sessionController()) {
-				return;
-			}
+												 if (!sessionController()) {
+													 return;
+												 }
 
-			sessionController()->show(
-				PrepareContactsBox(sessionController()));
-		}));
+												 sessionController()->show(PrepareContactsBox(sessionController()));
+											 }));
 
-	psAddContact = tools->addAction(
-		tr::lng_mac_menu_add_contact(tr::now),
-		this,
-		[=] {
-			Expects(sessionController() != nullptr);
-			ensureWindowShown();
-			sessionController()->showAddContact();
-		});
+	psAddContact = tools->addAction(tr::lng_mac_menu_add_contact(tr::now),
+									this,
+									[=]
+									{
+										Expects(sessionController() != nullptr);
+										ensureWindowShown();
+										sessionController()->showAddContact();
+									});
 
 	tools->addSeparator();
 
-	psNewGroup = tools->addAction(
-		tr::lng_mac_menu_new_group(tr::now),
-		this,
-		[=] {
-			Expects(sessionController() != nullptr);
-			ensureWindowShown();
-			sessionController()->showNewGroup();
-		});
+	psNewGroup = tools->addAction(tr::lng_mac_menu_new_group(tr::now),
+								  this,
+								  [=]
+								  {
+									  Expects(sessionController() != nullptr);
+									  ensureWindowShown();
+									  sessionController()->showNewGroup();
+								  });
 
-	psNewChannel = tools->addAction(
-		tr::lng_mac_menu_new_channel(tr::now),
-		this,
-		[=] {
-			Expects(sessionController() != nullptr);
-			ensureWindowShown();
-			sessionController()->showNewChannel();
-		});
+	psNewChannel = tools->addAction(tr::lng_mac_menu_new_channel(tr::now),
+									this,
+									[=]
+									{
+										Expects(sessionController() != nullptr);
+										ensureWindowShown();
+										sessionController()->showNewChannel();
+									});
 
 	auto help = psMainMenu->addMenu(tr::lng_linux_menu_help(tr::now));
 
-	auto about = help->addAction(
-		tr::lng_mac_menu_about_telegram(
-			tr::now,
-			lt_telegram,
-			u"AyuGram"_q),
-		[=] {
-			ensureWindowShown();
-			controller().show(Box<AboutBox>(sessionController()));
-		});
+	auto about = help->addAction(tr::lng_mac_menu_about_telegram(tr::now, lt_telegram, u"ViGram"_q),
+								 [=]
+								 {
+									 ensureWindowShown();
+									 controller().show(Box<AboutBox>(sessionController()));
+								 });
 
 	about->setMenuRole(QAction::AboutQtRole);
 
@@ -455,33 +400,31 @@ void MainWindow::updateGlobalMenuHook() {
 	const auto mimeData = QGuiApplication::clipboard()->mimeData();
 	const auto clipboardHasText = mimeData ? mimeData->hasText() : false;
 	auto markdownState = Ui::MarkdownEnabledState();
-	if (const auto edit = qobject_cast<QLineEdit*>(focused)) {
+	if (const auto edit = qobject_cast<QLineEdit *>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
 		canSelectAll = !edit->text().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
 		canPaste = clipboardHasText;
-	} else if (const auto edit = qobject_cast<QTextEdit*>(focused)) {
+	} else if (const auto edit = qobject_cast<QTextEdit *>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
 		canSelectAll = !edit->document()->isEmpty();
 		canUndo = edit->document()->isUndoAvailable();
 		canRedo = edit->document()->isRedoAvailable();
 		canPaste = clipboardHasText;
 		if (canCopy) {
-			if (const auto inputField = dynamic_cast<Ui::InputField*>(
-				focused->parentWidget())) {
+			if (const auto inputField = dynamic_cast<Ui::InputField *>(focused->parentWidget())) {
 				markdownState = inputField->markdownEnabledState();
 			}
 		}
-	} else if (const auto list = dynamic_cast<HistoryInner*>(focused)) {
+	} else if (const auto list = dynamic_cast<HistoryInner *>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
 	updateIsActive();
 	const auto logged = (sessionController() != nullptr);
 	const auto inactive = !logged || controller().locked();
-	const auto support = logged
-		&& sessionController()->session().supportMode();
+	const auto support = logged && sessionController()->session().supportMode();
 	ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());
 	ForceDisabled(psUndo, !canUndo);
 	ForceDisabled(psRedo, !canRedo);
@@ -495,27 +438,21 @@ void MainWindow::updateGlobalMenuHook() {
 	ForceDisabled(psNewGroup, inactive || support);
 	ForceDisabled(psNewChannel, inactive || support);
 
-	const auto diabled = [=](const QString &tag) {
-		return !markdownState.enabledForTag(tag);
-	};
+	const auto diabled = [=](const QString &tag) { return !markdownState.enabledForTag(tag); };
 	using Field = Ui::InputField;
 	ForceDisabled(psBold, diabled(Field::kTagBold));
 	ForceDisabled(psItalic, diabled(Field::kTagItalic));
 	ForceDisabled(psUnderline, diabled(Field::kTagUnderline));
 	ForceDisabled(psStrikeOut, diabled(Field::kTagStrikeOut));
 	ForceDisabled(psBlockquote, diabled(Field::kTagBlockquote));
-	ForceDisabled(
-		psMonospace,
-		diabled(Field::kTagPre) || diabled(Field::kTagCode));
+	ForceDisabled(psMonospace, diabled(Field::kTagPre) || diabled(Field::kTagCode));
 	ForceDisabled(psClearFormat, markdownState.disabled());
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	const auto t = evt->type();
 	if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
-		if (qobject_cast<QLineEdit*>(obj)
-			|| qobject_cast<QTextEdit*>(obj)
-			|| dynamic_cast<HistoryInner*>(obj)) {
+		if (qobject_cast<QLineEdit *>(obj) || qobject_cast<QTextEdit *>(obj) || dynamic_cast<HistoryInner *>(obj)) {
 			if (QApplication::focusWidget()) {
 				updateGlobalMenu();
 			}
@@ -523,10 +460,8 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	} else if (obj == this && t == QEvent::Paint) {
 		if (!_exposed) {
 			_exposed = true;
-			SkipTaskbar(
-				windowHandle(),
-				(Core::App().settings().workMode() == WorkMode::TrayOnly)
-					&& TrayIconSupported());
+			SkipTaskbar(windowHandle(),
+						(Core::App().settings().workMode() == WorkMode::TrayOnly) && TrayIconSupported());
 		}
 	} else if (obj == this && t == QEvent::Hide) {
 		_exposed = false;
@@ -536,7 +471,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	return Window::MainWindow::eventFilter(obj, evt);
 }
 
-MainWindow::~MainWindow() {
-}
+MainWindow::~MainWindow() {}
 
 } // namespace Platform

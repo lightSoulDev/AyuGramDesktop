@@ -1,4 +1,4 @@
-﻿// This is the source code of AyuGram for Desktop.
+﻿// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -34,7 +34,7 @@ std::vector<AyuMessageBase> convertToBase(const std::vector<DerivedMessage> &mes
 	return based;
 }
 
-void map(not_null<HistoryItem*> item, AyuMessageBase &message) {
+void map(not_null<HistoryItem *> item, AyuMessageBase &message) {
 	const ID userId = item->history()->owner().session().userId().bare & PeerId::kChatTypeMask;
 
 	message.userId = userId;
@@ -100,7 +100,7 @@ void addEditedMessage(not_null<HistoryItem *> item) {
 	AyuDatabase::addEditedMessage(message);
 }
 
-std::vector<AyuMessageBase> getEditedMessages(not_null<HistoryItem*> item, ID minId, ID maxId, int totalLimit) {
+std::vector<AyuMessageBase> getEditedMessages(not_null<HistoryItem *> item, ID minId, ID maxId, int totalLimit) {
 	const ID userId = item->history()->owner().session().userId().bare & PeerId::kChatTypeMask;
 	const auto dialogId = getDialogIdFromPeer(item->history()->peer);
 	const auto msgId = item->id.bare;
@@ -108,7 +108,7 @@ std::vector<AyuMessageBase> getEditedMessages(not_null<HistoryItem*> item, ID mi
 	return convertToBase(AyuDatabase::getEditedMessages(userId, dialogId, msgId, minId, maxId, totalLimit));
 }
 
-bool hasRevisions(not_null<HistoryItem*> item) {
+bool hasRevisions(not_null<HistoryItem *> item) {
 	const ID userId = item->history()->owner().session().userId().bare & PeerId::kChatTypeMask;
 	const auto dialogId = getDialogIdFromPeer(item->history()->peer);
 	const auto msgId = item->id.bare;
@@ -116,7 +116,7 @@ bool hasRevisions(not_null<HistoryItem*> item) {
 	return AyuDatabase::hasRevisions(userId, dialogId, msgId);
 }
 
-void addDeletedMessage(not_null<HistoryItem*> item) {
+void addDeletedMessage(not_null<HistoryItem *> item) {
 	DeletedMessage message;
 	map(item, message);
 
@@ -128,15 +128,15 @@ void addDeletedMessage(not_null<HistoryItem*> item) {
 }
 
 std::vector<AyuMessageBase>
-getDeletedMessages(not_null<PeerData*> peer, ID topicId, ID minId, ID maxId, int totalLimit) {
+getDeletedMessages(not_null<PeerData *> peer, ID topicId, ID minId, ID maxId, int totalLimit) {
 	const ID userId = peer->session().userId().bare & PeerId::kChatTypeMask;
 	return convertToBase(
 		AyuDatabase::getDeletedMessages(userId, getDialogIdFromPeer(peer), topicId, minId, maxId, totalLimit));
 }
 
-bool hasDeletedMessages(not_null<PeerData*> peer, ID topicId) {
+bool hasDeletedMessages(not_null<PeerData *> peer, ID topicId) {
 	const ID userId = peer->session().userId().bare & PeerId::kChatTypeMask;
 	return AyuDatabase::hasDeletedMessages(userId, getDialogIdFromPeer(peer), topicId);
 }
 
-}
+} // namespace AyuMessages

@@ -7,23 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/about_box.h"
 
+#include "base/platform/base_platform_info.h"
+#include "core/application.h"
+#include "core/click_handler_types.h"
+#include "core/file_utilities.h"
+#include "core/update_checker.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/text/text_utilities.h"
-#include "base/platform/base_platform_info.h"
-#include "core/file_utilities.h"
-#include "core/click_handler_types.h"
-#include "core/update_checker.h"
-#include "core/application.h"
-#include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 
-#include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
 
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -35,37 +35,30 @@ namespace {
 rpl::producer<TextWithEntities> Text() {
 	return tr::lng_about_text2(
 		lt_gpl_link,
-		rpl::single(Ui::Text::Link(
-			"GNU GPL",
-			"https://github.com/AyuGram/AyuGramDesktop/blob/master/LICENSE")),
+		rpl::single(Ui::Text::Link("GNU GPL", "https://github.com/ViGram/AyuGramDesktop/blob/master/LICENSE")),
 		lt_github_link,
-		rpl::single(Ui::Text::Link(
-			"GitHub",
-			"https://github.com/AyuGram/AyuGramDesktop")),
+		rpl::single(Ui::Text::Link("GitHub", "https://github.com/ViGram/AyuGramDesktop")),
 		Ui::Text::WithEntities);
 }
 
 } // namespace
 
-AboutBox::AboutBox(QWidget *parent, Window::SessionController* controller)
-: _version(this, tr::lng_about_version(tr::now, lt_version, currentVersionText()), st::aboutVersionLink)
-, _text(this, Text(), st::aboutLabel)
-, _controller(controller) {
-}
+AboutBox::AboutBox(QWidget *parent, Window::SessionController *controller)
+	: _version(this, tr::lng_about_version(tr::now, lt_version, currentVersionText()), st::aboutVersionLink),
+	  _text(this, Text(), st::aboutLabel), _controller(controller) {}
 
 void AboutBox::prepare() {
-	setTitle(rpl::single(u"AyuGram Desktop"_q));
+	setTitle(rpl::single(u"ViGram Desktop"_q));
 
 	addButton(tr::lng_close(), [this] { closeBox(); });
-	addLeftButton(
-		rpl::single(QString("@ayugramchat")),
-		[this, controller = _controller]
-		{
-			closeBox();
-			controller->showPeerByLink(Window::PeerByLinkInfo{
-				.usernameOrId = QString("ayugramchat"),
-			});
-		});
+	addLeftButton(rpl::single(QString("@vi_in_frame")),
+				  [this, controller = _controller]
+				  {
+					  closeBox();
+					  controller->showPeerByLink(Window::PeerByLinkInfo{
+						  .usernameOrId = QString("@vi_in_frame"),
+					  });
+				  });
 
 	_text->setLinksTrusted();
 
@@ -77,17 +70,13 @@ void AboutBox::prepare() {
 void AboutBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	const auto available = width()
-		- st::boxPadding.left()
-		- st::boxPadding.right();
+	const auto available = width() - st::boxPadding.left() - st::boxPadding.right();
 	_version->moveToLeft(st::boxPadding.left(), st::aboutVersionTop);
 	_text->resizeToWidth(available);
 	_text->moveToLeft(st::boxPadding.left(), st::aboutTextTop);
 }
 
-void AboutBox::showVersionHistory() {
-	File::OpenUrl(Core::App().changelogLink());
-}
+void AboutBox::showVersionHistory() { File::OpenUrl(Core::App().changelogLink()); }
 
 void AboutBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {

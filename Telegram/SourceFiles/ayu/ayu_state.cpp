@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -10,13 +10,9 @@ namespace AyuState {
 
 std::unordered_map<PeerId, std::unordered_set<MsgId>> hiddenMessages;
 
-void hide(PeerId peerId, MsgId messageId) {
-	hiddenMessages[peerId].insert(messageId);
-}
+void hide(PeerId peerId, MsgId messageId) { hiddenMessages[peerId].insert(messageId); }
 
-void hide(not_null<HistoryItem*> item) {
-	hide(item->history()->peer->id, item->id);
-}
+void hide(not_null<HistoryItem *> item) { hide(item->history()->peer->id, item->id); }
 
 bool isHidden(PeerId peerId, MsgId messageId) {
 	const auto it = hiddenMessages.find(peerId);
@@ -26,8 +22,6 @@ bool isHidden(PeerId peerId, MsgId messageId) {
 	return false;
 }
 
-bool isHidden(not_null<HistoryItem*> item) {
-	return isHidden(item->history()->peer->id, item->id);
-}
+bool isHidden(not_null<HistoryItem *> item) { return isHidden(item->history()->peer->id, item->id); }
 
-}
+} // namespace AyuState

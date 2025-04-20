@@ -13,27 +13,15 @@ bool _debug = false;
 
 wstring updaterName, updaterDir, updateTo, exeName, customWorkingDir, customKeyFile;
 
-bool equal(const wstring &a, const wstring &b) {
-	return !_wcsicmp(a.c_str(), b.c_str());
-}
+bool equal(const wstring &a, const wstring &b) { return !_wcsicmp(a.c_str(), b.c_str()); }
 
 void updateError(const WCHAR *msg, DWORD errorCode) {
 	WCHAR errMsg[2048];
 	LPWSTR errorTextFormatted = nullptr;
-	auto formatFlags = FORMAT_MESSAGE_FROM_SYSTEM
-		| FORMAT_MESSAGE_ALLOCATE_BUFFER
-		| FORMAT_MESSAGE_IGNORE_INSERTS;
+	auto formatFlags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS;
 	FormatMessage(
-		formatFlags,
-		NULL,
-		errorCode,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPWSTR)&errorTextFormatted,
-		0,
-		0);
-	auto errorText = errorTextFormatted
-		? errorTextFormatted
-		: L"(Unknown error)";
+		formatFlags, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR) &errorTextFormatted, 0, 0);
+	auto errorText = errorTextFormatted ? errorTextFormatted : L"(Unknown error)";
 	wsprintf(errMsg, L"%s, error code: %d\nError message: %s", msg, errorCode, errorText);
 
 	MessageBox(0, errMsg, L"Update error!", MB_ICONERROR);
@@ -59,10 +47,21 @@ void openLog() {
 
 	static const int maxFileLen = MAX_PATH * 10;
 	WCHAR logName[maxFileLen];
-	wsprintf(logName, L"DebugLogs\\%04d%02d%02d_%02d%02d%02d_upd.txt",
-		stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
-		stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond);
-	_logFile = CreateFile(logName, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+	wsprintf(logName,
+			 L"DebugLogs\\%04d%02d%02d_%02d%02d%02d_upd.txt",
+			 stLocalTime.wYear,
+			 stLocalTime.wMonth,
+			 stLocalTime.wDay,
+			 stLocalTime.wHour,
+			 stLocalTime.wMinute,
+			 stLocalTime.wSecond);
+	_logFile = CreateFile(logName,
+						  GENERIC_WRITE,
+						  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+						  0,
+						  CREATE_ALWAYS,
+						  FILE_ATTRIBUTE_NORMAL,
+						  0);
 	if (_logFile == INVALID_HANDLE_VALUE) { // :(
 		updateError(L"Failed to create log file", GetLastError());
 		_logFile = 0;
@@ -102,17 +101,7 @@ void fullClearPath(const wstring &dir) {
 	path[dir.size() + 1] = 0;
 	writeLog(L"Fully clearing path '" + dir + L"'..");
 	SHFILEOPSTRUCT file_op = {
-		NULL,
-		FO_DELETE,
-		path,
-		L"",
-		FOF_NOCONFIRMATION |
-		FOF_NOERRORUI |
-		FOF_SILENT,
-		false,
-		0,
-		L""
-	};
+		NULL, FO_DELETE, path, L"", FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT, false, 0, L""};
 	int res = SHFileOperation(&file_op);
 	if (res) writeLog(L"Error: failed to clear path! :(");
 }
@@ -125,14 +114,15 @@ void delFolder() {
 }
 
 DWORD versionNum = 0, versionLen = 0, readLen = 0;
-WCHAR versionStr[32] = { 0 };
+WCHAR versionStr[32] = {0};
 
 bool update() {
 	writeLog(L"Update started..");
 
 	wstring updDir = L"tupdates\\temp", readyFilePath = L"tupdates\\temp\\ready", tdataDir = L"tupdates\\temp\\tdata";
 	{
-		HANDLE readyFile = CreateFile(readyFilePath.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+		HANDLE readyFile = CreateFile(
+			readyFilePath.c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 		if (readyFile != INVALID_HANDLE_VALUE) {
 			CloseHandle(readyFile);
 		} else {
@@ -141,14 +131,16 @@ bool update() {
 		}
 	}
 
-	HANDLE versionFile = CreateFile((tdataDir + L"\\version").c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+	HANDLE versionFile = CreateFile(
+		(tdataDir + L"\\version").c_str(), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 	if (versionFile != INVALID_HANDLE_VALUE) {
 		if (!ReadFile(versionFile, &versionNum, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD)) {
 			versionNum = 0;
 		} else {
 			if (versionNum == 0x7FFFFFFF) { // alpha version
 
-			} else if (!ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD) || versionLen > 63) {
+			} else if (!ReadFile(versionFile, &versionLen, sizeof(DWORD), &readLen, NULL) || readLen != sizeof(DWORD) ||
+					   versionLen > 63) {
 				versionNum = 0;
 			} else if (!ReadFile(versionFile, versionStr, versionLen, &readLen, NULL) || readLen != versionLen) {
 				versionNum = 0;
@@ -177,7 +169,8 @@ bool update() {
 		}
 
 		WIN32_FIND_DATA findData;
-		HANDLE findHandle = FindFirstFileEx((dir + L"\\*").c_str(), FindExInfoStandard, &findData, FindExSearchNameMatch, 0, 0);
+		HANDLE findHandle =
+			FindFirstFileEx((dir + L"\\*").c_str(), FindExInfoStandard, &findData, FindExSearchNameMatch, 0, 0);
 		if (findHandle == INVALID_HANDLE_VALUE) {
 			DWORD errorCode = GetLastError();
 			if (errorCode == ERROR_PATH_NOT_FOUND) { // no update is ready
@@ -191,7 +184,8 @@ bool update() {
 
 		do {
 			wstring fname = dir + L"\\" + findData.cFileName;
-			if (fname.substr(0, tdataDir.size()) == tdataDir && (fname.size() <= tdataDir.size() || fname.at(tdataDir.size()) == '/')) {
+			if (fname.substr(0, tdataDir.size()) == tdataDir &&
+				(fname.size() <= tdataDir.size() || fname.at(tdataDir.size()) == '/')) {
 				writeLog(L"Skipped 'tdata' path '" + fname + L"'");
 			} else if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 				if (findData.cFileName != wstring(L".") && findData.cFileName != wstring(L"..")) {
@@ -204,7 +198,7 @@ bool update() {
 					writeLog(L"Error: bad update, has Updater.exe! '" + tofname + L"' equal '" + updaterName + L"'");
 					delFolder();
 					return false;
-				} else if (equal(tofname, updateTo + L"AyuGram.exe") && exeName != L"AyuGram.exe") {
+				} else if (equal(tofname, updateTo + L"ViGram.exe") && exeName != L"ViGram.exe") {
 					wstring fullBinaryPath = updateTo + exeName;
 					writeLog(L"Target binary found: '" + tofname + L"', changing to '" + fullBinaryPath + L"'");
 					tofname = fullBinaryPath;
@@ -280,13 +274,19 @@ void updateRegistry() {
 		writeLog(L"Updating registry..");
 		versionStr[versionLen / 2] = 0;
 		HKEY rkey;
-		LSTATUS status = RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{53F49750-6209-4FBF-9CA8-7A333C87D1ED}_is1", 0, KEY_QUERY_VALUE | KEY_SET_VALUE, &rkey);
+		LSTATUS status = RegOpenKeyEx(
+			HKEY_CURRENT_USER,
+			L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{53F49750-6209-4FBF-9CA8-7A333C87D1ED}_is1",
+			0,
+			KEY_QUERY_VALUE | KEY_SET_VALUE,
+			&rkey);
 		if (status == ERROR_SUCCESS) {
 			writeLog(L"Checking registry install location..");
 			static const int bufSize = 4096;
 			DWORD locationType, locationSize = bufSize * 2;
 			WCHAR locationStr[bufSize], exp[bufSize];
-			if (RegQueryValueEx(rkey, L"InstallLocation", 0, &locationType, (BYTE*)locationStr, &locationSize) == ERROR_SUCCESS) {
+			if (RegQueryValueEx(rkey, L"InstallLocation", 0, &locationType, (BYTE *) locationStr, &locationSize) ==
+				ERROR_SUCCESS) {
 				locationSize /= 2;
 				if (locationStr[locationSize - 1]) {
 					locationStr[locationSize++] = 0;
@@ -306,20 +306,61 @@ void updateRegistry() {
 								WCHAR nameStr[bufSize], dateStr[bufSize], publisherStr[bufSize], icongroupStr[bufSize];
 								SYSTEMTIME stLocalTime;
 								GetLocalTime(&stLocalTime);
-								RegSetValueEx(rkey, L"DisplayVersion", 0, REG_SZ, (const BYTE*)versionStr, ((versionLen / 2) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey,
+											  L"DisplayVersion",
+											  0,
+											  REG_SZ,
+											  (const BYTE *) versionStr,
+											  ((versionLen / 2) + 1) * sizeof(WCHAR));
 								wsprintf(nameStr, L"Telegram Desktop");
-								RegSetValueEx(rkey, L"DisplayName", 0, REG_SZ, (const BYTE*)nameStr, (wcslen(nameStr) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey,
+											  L"DisplayName",
+											  0,
+											  REG_SZ,
+											  (const BYTE *) nameStr,
+											  (wcslen(nameStr) + 1) * sizeof(WCHAR));
 								wsprintf(publisherStr, L"Telegram FZ-LLC");
-								RegSetValueEx(rkey, L"Publisher", 0, REG_SZ, (const BYTE*)publisherStr, (wcslen(publisherStr) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey,
+											  L"Publisher",
+											  0,
+											  REG_SZ,
+											  (const BYTE *) publisherStr,
+											  (wcslen(publisherStr) + 1) * sizeof(WCHAR));
 								wsprintf(icongroupStr, L"Telegram Desktop");
-								RegSetValueEx(rkey, L"Inno Setup: Icon Group", 0, REG_SZ, (const BYTE*)icongroupStr, (wcslen(icongroupStr) + 1) * sizeof(WCHAR));
-								wsprintf(dateStr, L"%04d%02d%02d", stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay);
-								RegSetValueEx(rkey, L"InstallDate", 0, REG_SZ, (const BYTE*)dateStr, (wcslen(dateStr) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey,
+											  L"Inno Setup: Icon Group",
+											  0,
+											  REG_SZ,
+											  (const BYTE *) icongroupStr,
+											  (wcslen(icongroupStr) + 1) * sizeof(WCHAR));
+								wsprintf(
+									dateStr, L"%04d%02d%02d", stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay);
+								RegSetValueEx(rkey,
+											  L"InstallDate",
+											  0,
+											  REG_SZ,
+											  (const BYTE *) dateStr,
+											  (wcslen(dateStr) + 1) * sizeof(WCHAR));
 
 								const WCHAR *appURL = L"https://desktop.telegram.org";
-								RegSetValueEx(rkey, L"HelpLink", 0, REG_SZ, (const BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
-								RegSetValueEx(rkey, L"URLInfoAbout", 0, REG_SZ, (const BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
-								RegSetValueEx(rkey, L"URLUpdateInfo", 0, REG_SZ, (const BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey,
+											  L"HelpLink",
+											  0,
+											  REG_SZ,
+											  (const BYTE *) appURL,
+											  (wcslen(appURL) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey,
+											  L"URLInfoAbout",
+											  0,
+											  REG_SZ,
+											  (const BYTE *) appURL,
+											  (wcslen(appURL) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey,
+											  L"URLUpdateInfo",
+											  0,
+											  REG_SZ,
+											  (const BYTE *) appURL,
+											  (wcslen(appURL) + 1) * sizeof(WCHAR));
 							}
 						}
 					}
@@ -336,7 +377,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	openLog();
 
 	_oldWndExceptionFilter = SetUnhandledExceptionFilter(_exceptionFilter);
-//	CAPIHook apiHook("kernel32.dll", "SetUnhandledExceptionFilter", (PROC)RedirectedSetUnhandledExceptionFilter);
+	//	CAPIHook apiHook("kernel32.dll", "SetUnhandledExceptionFilter", (PROC)RedirectedSetUnhandledExceptionFilter);
 
 	writeLog(L"Updaters started..");
 
@@ -377,14 +418,14 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				exeName = args[i];
 				for (int j = 0, l = exeName.size(); j < l; ++j) {
 					if (exeName[j] == L'/' || exeName[j] == L'\\') {
-						exeName = L"AyuGram.exe";
+						exeName = L"ViGram.exe";
 						break;
 					}
 				}
 			}
 		}
 		if (exeName.empty()) {
-			exeName = L"AyuGram.exe";
+			exeName = L"ViGram.exe";
 		}
 		if (needupdate) writeLog(L"Need to update!");
 		if (autostart) writeLog(L"From autostart!");
@@ -404,8 +445,10 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				if (needupdate && update()) {
 					updateRegistry();
 				}
-				if (writeprotected) { // if we can't clear all tupdates\ready (Updater.exe is there) - clear only version
-					if (DeleteFile(L"tupdates\\temp\\tdata\\version") || DeleteFile(L"tupdates\\ready\\tdata\\version")) {
+				if (writeprotected) { // if we can't clear all tupdates\ready (Updater.exe is there) - clear only
+									  // version
+					if (DeleteFile(L"tupdates\\temp\\tdata\\version") ||
+						DeleteFile(L"tupdates\\ready\\tdata\\version")) {
 						writeLog(L"Version file deleted!");
 					} else {
 						writeLog(L"Error: could not delete version file");
@@ -440,10 +483,11 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 
 		HRESULT hres = CoInitialize(0);
 		if (SUCCEEDED(hres)) {
-			IShellLink* psl;
-			HRESULT hres = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID*)&psl);
+			IShellLink *psl;
+			HRESULT hres =
+				CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (LPVOID *) &psl);
 			if (SUCCEEDED(hres)) {
-				IPersistFile* ppf;
+				IPersistFile *ppf;
 
 				wstring exe = updateTo + exeName, dir = updateTo;
 				psl->SetArguments((targs.size() ? targs.substr(1) : targs).c_str());
@@ -451,7 +495,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				psl->SetWorkingDirectory(dir.c_str());
 				psl->SetDescription(L"");
 
-				hres = psl->QueryInterface(IID_IPersistFile, (LPVOID*)&ppf);
+				hres = psl->QueryInterface(IID_IPersistFile, (LPVOID *) &ppf);
 
 				if (SUCCEEDED(hres)) {
 					wstring lnk = L"tupdates\\temp\\temp.lnk";
@@ -496,15 +540,13 @@ static const WCHAR *_exeName = L"Updater.exe";
 
 LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter = 0;
 
-typedef BOOL (FAR STDAPICALLTYPE *t_miniDumpWriteDump)(
-	_In_ HANDLE hProcess,
-	_In_ DWORD ProcessId,
-	_In_ HANDLE hFile,
-	_In_ MINIDUMP_TYPE DumpType,
-	_In_opt_ PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
-	_In_opt_ PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
-	_In_opt_ PMINIDUMP_CALLBACK_INFORMATION CallbackParam
-);
+typedef BOOL(FAR STDAPICALLTYPE *t_miniDumpWriteDump)(_In_ HANDLE hProcess,
+													  _In_ DWORD ProcessId,
+													  _In_ HANDLE hFile,
+													  _In_ MINIDUMP_TYPE DumpType,
+													  _In_opt_ PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
+													  _In_opt_ PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
+													  _In_opt_ PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
 t_miniDumpWriteDump miniDumpWriteDump = 0;
 
 HANDLE _generateDumpFileAtPath(const WCHAR *path) {
@@ -537,16 +579,24 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 
 	GetLocalTime(&stLocalTime);
 
-	wsprintf(
-		szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
-		szPath, szExeName, updaterVersionStr,
-		stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
-		stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
-		GetCurrentProcessId(), GetCurrentThreadId());
-	return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
+	wsprintf(szFileName,
+			 L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
+			 szPath,
+			 szExeName,
+			 updaterVersionStr,
+			 stLocalTime.wYear,
+			 stLocalTime.wMonth,
+			 stLocalTime.wDay,
+			 stLocalTime.wHour,
+			 stLocalTime.wMinute,
+			 stLocalTime.wSecond,
+			 GetCurrentProcessId(),
+			 GetCurrentThreadId());
+	return CreateFile(
+		szFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_WRITE | FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
 
-void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
+void _generateDump(EXCEPTION_POINTERS *pExceptionPointers) {
 	static const int maxFileLen = MAX_PATH * 10;
 
 	closeLog();
@@ -554,7 +604,7 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 	HMODULE hDll = LoadLibrary(L"DBGHELP.DLL");
 	if (!hDll) return;
 
-	miniDumpWriteDump = (t_miniDumpWriteDump)GetProcAddress(hDll, "MiniDumpWriteDump");
+	miniDumpWriteDump = (t_miniDumpWriteDump) GetProcAddress(hDll, "MiniDumpWriteDump");
 	if (!miniDumpWriteDump) return;
 
 	HANDLE hDumpFile = 0;
@@ -587,16 +637,18 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 	ExpParam.ExceptionPointers = pExceptionPointers;
 	ExpParam.ClientPointers = TRUE;
 
-	miniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, MiniDumpWithDataSegs, &ExpParam, NULL, NULL);
+	miniDumpWriteDump(
+		GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, MiniDumpWithDataSegs, &ExpParam, NULL, NULL);
 }
 
-LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers) {
+LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS *pExceptionPointers) {
 	_generateDump(pExceptionPointers);
 	return _oldWndExceptionFilter ? (*_oldWndExceptionFilter)(pExceptionPointers) : EXCEPTION_CONTINUE_SEARCH;
 }
 
 // see http://www.codeproject.com/Articles/154686/SetUnhandledExceptionFilter-and-the-C-C-Runtime-Li
-LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter) {
+LPTOP_LEVEL_EXCEPTION_FILTER WINAPI
+RedirectedSetUnhandledExceptionFilter(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter) {
 	// When the CRT calls SetUnhandledExceptionFilter with NULL parameter
 	// our handler will not get removed.
 	_oldWndExceptionFilter = lpTopLevelExceptionFilter;

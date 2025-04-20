@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -12,8 +12,8 @@
 namespace AyuState {
 
 void hide(PeerId peerId, MsgId messageId);
-void hide(not_null<HistoryItem*> item);
+void hide(not_null<HistoryItem *> item);
 bool isHidden(PeerId peerId, MsgId messageId);
-bool isHidden(not_null<HistoryItem*> item);
+bool isHidden(not_null<HistoryItem *> item);
 
-}
+} // namespace AyuState

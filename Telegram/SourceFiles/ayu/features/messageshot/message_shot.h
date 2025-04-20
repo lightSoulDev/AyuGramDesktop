@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -8,16 +8,16 @@
 
 #include "history/view/history_view_list_widget.h"
 #include "ui/chat/chat_style.h"
-#include "window/window_session_controller.h"
 #include "window/themes/window_themes_embedded.h"
+#include "window/window_session_controller.h"
 
 namespace AyuFeatures::MessageShot {
 
 struct ShotConfig
 {
-	not_null<Window::SessionController*> controller;
+	not_null<Window::SessionController *> controller;
 	std::shared_ptr<Ui::ChatStyle> st;
-	std::vector<not_null<HistoryItem*>> messages;
+	std::vector<not_null<HistoryItem *>> messages;
 
 	bool showBackground = true;
 	bool showDate;
@@ -67,8 +67,8 @@ rpl::producer<style::palette> paletteChosen();
 // util
 QColor makeDefaultBackgroundColor();
 
-QImage Make(not_null<QWidget*> box, const ShotConfig &config);
+QImage Make(not_null<QWidget *> box, const ShotConfig &config);
 
-void Wrapper(not_null<HistoryView::ListWidget*> widget, Fn<void()> clearSelected);
+void Wrapper(not_null<HistoryView::ListWidget *> widget, Fn<void()> clearSelected);
 
-}
+} // namespace AyuFeatures::MessageShot

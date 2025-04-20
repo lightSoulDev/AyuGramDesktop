@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/windows_app_user_model_id.h"
 
-#include "platform/win/windows_dlls.h"
-#include "platform/win/windows_toast_activator.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "core/launcher.h"
+#include "platform/win/windows_dlls.h"
+#include "platform/win/windows_toast_activator.h"
 
-#include <propvarutil.h>
 #include <propkey.h>
+#include <propvarutil.h>
 
 namespace Platform {
 namespace AppUserModelId {
@@ -21,14 +21,17 @@ namespace {
 
 constexpr auto kMaxFileLen = MAX_PATH * 2;
 
-const PROPERTYKEY pkey_AppUserModel_ID = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 5 };
-const PROPERTYKEY pkey_AppUserModel_StartPinOption = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 12 };
-const PROPERTYKEY pkey_AppUserModel_ToastActivator = { { 0x9F4C2855, 0x9F79, 0x4B39, { 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3 } }, 26 };
+const PROPERTYKEY pkey_AppUserModel_ID = {
+	{0x9F4C2855, 0x9F79, 0x4B39, {0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3}}, 5};
+const PROPERTYKEY pkey_AppUserModel_StartPinOption = {
+	{0x9F4C2855, 0x9F79, 0x4B39, {0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3}}, 12};
+const PROPERTYKEY pkey_AppUserModel_ToastActivator = {
+	{0x9F4C2855, 0x9F79, 0x4B39, {0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3}}, 26};
 
 #ifdef OS_WIN_STORE
-const WCHAR AppUserModelIdBase[] = L"AyuGram.AyuGramDesktop.Store";
+const WCHAR AppUserModelIdBase[] = L"ViGram.AyuGramDesktop.Store";
 #else // OS_WIN_STORE
-const WCHAR AppUserModelIdBase[] = L"AyuGram.AyuGramDesktop";
+const WCHAR AppUserModelIdBase[] = L"ViGram.AyuGramDesktop";
 #endif // OS_WIN_STORE
 
 } // namespace
@@ -37,19 +40,16 @@ QString PinnedIconsPath() {
 	WCHAR wstrPath[kMaxFileLen] = {};
 	if (GetEnvironmentVariable(L"APPDATA", wstrPath, kMaxFileLen)) {
 		auto appData = QDir(QString::fromStdWString(std::wstring(wstrPath)));
-		return appData.absolutePath()
-			+ u"/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/"_q;
+		return appData.absolutePath() + u"/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/"_q;
 	}
 	return QString();
 }
 
 const std::wstring &MyExecutablePath() {
-	static const auto Path = [&] {
+	static const auto Path = [&]
+	{
 		auto result = std::wstring(kMaxFileLen, 0);
-		const auto length = GetModuleFileName(
-			GetModuleHandle(nullptr),
-			result.data(),
-			kMaxFileLen);
+		const auto length = GetModuleFileName(GetModuleHandle(nullptr), result.data(), kMaxFileLen);
 		if (!length || length == kMaxFileLen) {
 			result.clear();
 		} else {
@@ -60,20 +60,11 @@ const std::wstring &MyExecutablePath() {
 	return Path;
 }
 
-UniqueFileId MyExecutablePathId() {
-	return GetUniqueFileId(MyExecutablePath().c_str());
-}
+UniqueFileId MyExecutablePathId() { return GetUniqueFileId(MyExecutablePath().c_str()); }
 
 UniqueFileId GetUniqueFileId(LPCWSTR path) {
 	auto info = BY_HANDLE_FILE_INFORMATION{};
-	const auto file = CreateFile(
-		path,
-		0,
-		0,
-		nullptr,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		nullptr);
+	const auto file = CreateFile(path, 0, 0, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (file == INVALID_HANDLE_VALUE) {
 		return {};
 	}
@@ -84,8 +75,7 @@ UniqueFileId GetUniqueFileId(LPCWSTR path) {
 	}
 	return {
 		.part1 = info.dwVolumeSerialNumber,
-		.part2 = ((std::uint64_t(info.nFileIndexLow) << 32)
-			| std::uint64_t(info.nFileIndexHigh)),
+		.part2 = ((std::uint64_t(info.nFileIndexLow) << 32) | std::uint64_t(info.nFileIndexHigh)),
 	};
 }
 
@@ -93,9 +83,7 @@ void CheckPinned() {
 	if (!SUCCEEDED(CoInitialize(0))) {
 		return;
 	}
-	const auto coGuard = gsl::finally([] {
-		CoUninitialize();
-	});
+	const auto coGuard = gsl::finally([] { CoUninitialize(); });
 
 	const auto path = PinnedIconsPath();
 	const auto native = QDir::toNativeSeparators(path).toStdWString();
@@ -107,13 +95,8 @@ void CheckPinned() {
 
 	LOG(("Checking..."));
 	WIN32_FIND_DATA findData;
-	HANDLE findHandle = FindFirstFileEx(
-		(native + L"*").c_str(),
-		FindExInfoStandard,
-		&findData,
-		FindExSearchNameMatch,
-		0,
-		0);
+	HANDLE findHandle =
+		FindFirstFileEx((native + L"*").c_str(), FindExInfoStandard, &findData, FindExSearchNameMatch, 0, 0);
 	if (findHandle == INVALID_HANDLE_VALUE) {
 		LOG(("Init Error: could not find files in pinned folder"));
 		return;
@@ -129,8 +112,7 @@ void CheckPinned() {
 				continue; // file does not exist
 			}
 
-			auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
-				CLSID_ShellLink);
+			auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(CLSID_ShellLink);
 			if (!shellLink) {
 				continue;
 			}
@@ -143,7 +125,7 @@ void CheckPinned() {
 			auto hr = persistFile->Load(fname.c_str(), STGM_READWRITE);
 			if (!SUCCEEDED(hr)) continue;
 
-			WCHAR dst[MAX_PATH] = { 0 };
+			WCHAR dst[MAX_PATH] = {0};
 			hr = shellLink->GetPath(dst, MAX_PATH, nullptr, 0);
 			if (!SUCCEEDED(hr)) continue;
 
@@ -213,14 +195,13 @@ void CleanupShortcut() {
 		return;
 	}
 
-	QString path = systemShortcutPath() + u"AyuGram.lnk"_q;
+	QString path = systemShortcutPath() + u"ViGram.lnk"_q;
 	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
 
 	DWORD attributes = GetFileAttributes(p.c_str());
 	if (attributes >= 0xFFFFFFF) return; // file does not exist
 
-	auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
-		CLSID_ShellLink);
+	auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(CLSID_ShellLink);
 	if (!shellLink) {
 		return;
 	}
@@ -250,8 +231,7 @@ bool validateShortcutAt(const QString &path) {
 		return false; // file does not exist
 	}
 
-	auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
-		CLSID_ShellLink);
+	auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(CLSID_ShellLink);
 	if (!shellLink) {
 		return false;
 	}
@@ -264,7 +244,7 @@ bool validateShortcutAt(const QString &path) {
 	auto hr = persistFile->Load(native.c_str(), STGM_READWRITE);
 	if (!SUCCEEDED(hr)) return false;
 
-	WCHAR szGotPath[kMaxFileLen] = { 0 };
+	WCHAR szGotPath[kMaxFileLen] = {0};
 	hr = shellLink->GetPath(szGotPath, kMaxFileLen, nullptr, 0);
 	if (!SUCCEEDED(hr)) {
 		return false;
@@ -284,9 +264,7 @@ bool validateShortcutAt(const QString &path) {
 	hr = propertyStore->GetValue(Key(), &appIdPropVar);
 	if (!SUCCEEDED(hr)) return false;
 
-	hr = propertyStore->GetValue(
-		pkey_AppUserModel_ToastActivator,
-		&toastActivatorPropVar);
+	hr = propertyStore->GetValue(pkey_AppUserModel_ToastActivator, &toastActivatorPropVar);
 	if (!SUCCEEDED(hr)) return false;
 
 	WCHAR already[MAX_PATH];
@@ -314,14 +292,10 @@ bool validateShortcutAt(const QString &path) {
 	PropVariantClear(&appIdPropVar);
 	if (!SUCCEEDED(hr)) return false;
 
-	hr = InitPropVariantFromCLSID(
-		__uuidof(ToastActivator),
-		&toastActivatorPropVar);
+	hr = InitPropVariantFromCLSID(__uuidof(ToastActivator), &toastActivatorPropVar);
 	if (!SUCCEEDED(hr)) return false;
 
-	hr = propertyStore->SetValue(
-		pkey_AppUserModel_ToastActivator,
-		toastActivatorPropVar);
+	hr = propertyStore->SetValue(pkey_AppUserModel_ToastActivator, toastActivatorPropVar);
 	PropVariantClear(&toastActivatorPropVar);
 	if (!SUCCEEDED(hr)) return false;
 
@@ -345,10 +319,9 @@ bool checkInstalled(QString path = {}) {
 		}
 	}
 
-	const auto installed = u"AyuGram Desktop/AyuGram.lnk"_q;
-	const auto old = u"AyuGram for Windows/AyuGram.lnk"_q;
-	return validateShortcutAt(path + installed)
-		|| validateShortcutAt(path + old);
+	const auto installed = u"ViGram Desktop/ViGram.lnk"_q;
+	const auto old = u"ViGram for Windows/ViGram.lnk"_q;
+	return validateShortcutAt(path + installed) || validateShortcutAt(path + old);
 }
 
 bool ValidateShortcut() {
@@ -367,14 +340,13 @@ bool ValidateShortcut() {
 			return true;
 		}
 
-		path += u"AyuGram.lnk"_q;
+		path += u"ViGram.lnk"_q;
 		if (validateShortcutAt(path)) {
 			return true;
 		}
 	}
 
-	auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
-		CLSID_ShellLink);
+	auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(CLSID_ShellLink);
 	if (!shellLink) {
 		return false;
 	}
@@ -390,8 +362,7 @@ bool ValidateShortcut() {
 	}
 
 	hr = shellLink->SetWorkingDirectory(
-		QDir::toNativeSeparators(
-			QDir(cWorkingDir()).absolutePath()).toStdWString().c_str());
+		QDir::toNativeSeparators(QDir(cWorkingDir()).absolutePath()).toStdWString().c_str());
 	if (!SUCCEEDED(hr)) {
 		return false;
 	}
@@ -414,32 +385,24 @@ bool ValidateShortcut() {
 	}
 
 	PROPVARIANT startPinPropVar;
-	hr = InitPropVariantFromUInt32(
-		APPUSERMODEL_STARTPINOPTION_NOPINONINSTALL,
-		&startPinPropVar);
+	hr = InitPropVariantFromUInt32(APPUSERMODEL_STARTPINOPTION_NOPINONINSTALL, &startPinPropVar);
 	if (!SUCCEEDED(hr)) {
 		return false;
 	}
 
-	hr = propertyStore->SetValue(
-		pkey_AppUserModel_StartPinOption,
-		startPinPropVar);
+	hr = propertyStore->SetValue(pkey_AppUserModel_StartPinOption, startPinPropVar);
 	PropVariantClear(&startPinPropVar);
 	if (!SUCCEEDED(hr)) {
 		return false;
 	}
 
 	PROPVARIANT toastActivatorPropVar{};
-	hr = InitPropVariantFromCLSID(
-		__uuidof(ToastActivator),
-		&toastActivatorPropVar);
+	hr = InitPropVariantFromCLSID(__uuidof(ToastActivator), &toastActivatorPropVar);
 	if (!SUCCEEDED(hr)) {
 		return false;
 	}
 
-	hr = propertyStore->SetValue(
-		pkey_AppUserModel_ToastActivator,
-		toastActivatorPropVar);
+	hr = propertyStore->SetValue(pkey_AppUserModel_ToastActivator, toastActivatorPropVar);
 	PropVariantClear(&toastActivatorPropVar);
 	if (!SUCCEEDED(hr)) {
 		return false;
@@ -455,9 +418,7 @@ bool ValidateShortcut() {
 		return false;
 	}
 
-	hr = persistFile->Save(
-		QDir::toNativeSeparators(path).toStdWString().c_str(),
-		TRUE);
+	hr = persistFile->Save(QDir::toNativeSeparators(path).toStdWString().c_str(), TRUE);
 	if (!SUCCEEDED(hr)) {
 		return false;
 	}
@@ -472,27 +433,25 @@ const std::wstring &Id() {
 	if (CheckingInstalled) {
 		return BaseId;
 	}
-	static const auto Installed = [] {
+	static const auto Installed = []
+	{
 #ifdef OS_WIN_STORE
 		return true;
 #else // OS_WIN_STORE
 		CheckingInstalled = true;
-		const auto guard = gsl::finally([] {
-			CheckingInstalled = false;
-		});
+		const auto guard = gsl::finally([] { CheckingInstalled = false; });
 		if (!SUCCEEDED(CoInitialize(nullptr))) {
 			return false;
 		}
-		const auto coGuard = gsl::finally([] {
-			CoUninitialize();
-		});
+		const auto coGuard = gsl::finally([] { CoUninitialize(); });
 		return checkInstalled();
 #endif
 	}();
 	if (Installed) {
 		return BaseId;
 	}
-	static const auto PortableId = [] {
+	static const auto PortableId = []
+	{
 		std::string h(32, 0);
 		if (Core::Launcher::Instance().customWorkingDir()) {
 			const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
@@ -506,9 +465,7 @@ const std::wstring &Id() {
 	return PortableId;
 }
 
-const PROPERTYKEY &Key() {
-	return pkey_AppUserModel_ID;
-}
+const PROPERTYKEY &Key() { return pkey_AppUserModel_ID; }
 
 } // namespace AppUserModelId
 } // namespace Platform

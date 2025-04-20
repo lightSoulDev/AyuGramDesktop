@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -17,23 +17,23 @@ bool needToShowItem(int state);
 
 void AddDeletedMessagesActions(PeerData *peerData,
 							   Data::Thread *thread,
-							   not_null<Window::SessionController*> sessionController,
+							   not_null<Window::SessionController *> sessionController,
 							   const Window::PeerMenuCallback &addCallback);
 
 void AddJumpToBeginningAction(PeerData *peerData,
 							  Data::Thread *thread,
-							  not_null<Window::SessionController*> sessionController,
+							  not_null<Window::SessionController *> sessionController,
 							  const Window::PeerMenuCallback &addCallback);
 
 void AddOpenChannelAction(PeerData *peerData,
-							  not_null<Window::SessionController*> sessionController,
-							  const Window::PeerMenuCallback &addCallback);
+						  not_null<Window::SessionController *> sessionController,
+						  const Window::PeerMenuCallback &addCallback);
 
-void AddHistoryAction(not_null<Ui::PopupMenu*> menu, HistoryItem *item);
-void AddHideMessageAction(not_null<Ui::PopupMenu*> menu, HistoryItem *item);
-void AddUserMessagesAction(not_null<Ui::PopupMenu*> menu, HistoryItem *item);
-void AddMessageDetailsAction(not_null<Ui::PopupMenu*> menu, HistoryItem *item);
-void AddReadUntilAction(not_null<Ui::PopupMenu*> menu, HistoryItem *item);
-void AddBurnAction(not_null<Ui::PopupMenu*> menu, HistoryItem *item);
+void AddHistoryAction(not_null<Ui::PopupMenu *> menu, HistoryItem *item);
+void AddHideMessageAction(not_null<Ui::PopupMenu *> menu, HistoryItem *item);
+void AddUserMessagesAction(not_null<Ui::PopupMenu *> menu, HistoryItem *item);
+void AddMessageDetailsAction(not_null<Ui::PopupMenu *> menu, HistoryItem *item);
+void AddReadUntilAction(not_null<Ui::PopupMenu *> menu, HistoryItem *item);
+void AddBurnAction(not_null<Ui::PopupMenu *> menu, HistoryItem *item);
 
-}
+} // namespace AyuUi

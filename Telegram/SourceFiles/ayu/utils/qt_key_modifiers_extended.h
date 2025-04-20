@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -10,8 +10,6 @@
 
 namespace base {
 
-[[nodiscard]] inline bool IsExtendedContextMenuModifierPressed() {
-	return IsShiftPressed() || IsCtrlPressed();
-}
+[[nodiscard]] inline bool IsExtendedContextMenuModifierPressed() { return IsShiftPressed() || IsCtrlPressed(); }
 
 } // namespace base

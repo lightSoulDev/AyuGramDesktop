@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -6,10 +6,9 @@
 // Copyright @Radolyn, 2025
 #include "message_shot.h"
 
-#include "styles/style_layers.h"
 #include "styles/style_ayu_styles.h"
+#include "styles/style_layers.h"
 
-#include "qguiapplication.h"
 #include "ayu/ui/boxes/message_shot_box.h"
 #include "boxes/abstract_box.h"
 #include "data/data_cloud_themes.h"
@@ -20,15 +19,16 @@
 #include "history/history.h"
 #include "history/history_inner_widget.h"
 #include "history/history_item.h"
-#include "history/view/history_view_element.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_element.h"
 #include "history/view/media/history_view_media.h"
 #include "main/main_session.h"
+#include "qguiapplication.h"
 #include "styles/style_chat.h"
-#include "ui/painter.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/layers/box_content.h"
+#include "ui/painter.h"
 #include "window/themes/window_theme.h"
 
 namespace AyuFeatures::MessageShot {
@@ -49,44 +49,32 @@ bool choosingTheme = false;
 rpl::event_stream<Data::CloudTheme> themeChosenStream;
 rpl::event_stream<style::palette> paletteChosenStream;
 
-void setShotConfig(ShotConfig &config) {
-	MessageShot::config = &config;
-}
+void setShotConfig(ShotConfig &config) { MessageShot::config = &config; }
 
-void resetShotConfig() {
-	config = nullptr;
-}
+void resetShotConfig() { config = nullptr; }
 
-ShotConfig getShotConfig() {
-	return *config;
-}
+ShotConfig getShotConfig() { return *config; }
 
 void setDefaultSelected(const Window::Theme::EmbeddedType type) {
 	resetCustomSelected();
 	defaultSelected = type;
 }
 
-Window::Theme::EmbeddedType getSelectedFromDefault() {
-	return defaultSelected;
-}
+Window::Theme::EmbeddedType getSelectedFromDefault() { return defaultSelected; }
 
 void setDefaultSelectedColor(const QColor color) {
 	resetCustomSelected();
 	defaultSelectedColor = color;
 }
 
-std::optional<QColor> getSelectedColorFromDefault() {
-	return defaultSelectedColor;
-}
+std::optional<QColor> getSelectedColorFromDefault() { return defaultSelectedColor; }
 
 void setCustomSelected(const Data::CloudTheme theme) {
 	resetDefaultSelected();
 	customSelected = theme;
 }
 
-std::optional<Data::CloudTheme> getSelectedFromCustom() {
-	return customSelected;
-}
+std::optional<Data::CloudTheme> getSelectedFromCustom() { return customSelected; }
 
 void resetDefaultSelected() {
 	defaultSelected = Window::Theme::EmbeddedType(-1);
@@ -98,13 +86,9 @@ void resetCustomSelected() {
 	resetCustomSelectedStream.fire({});
 }
 
-rpl::producer<> resetDefaultSelectedEvents() {
-	return resetDefaultSelectedStream.events();
-}
+rpl::producer<> resetDefaultSelectedEvents() { return resetDefaultSelectedStream.events(); }
 
-rpl::producer<> resetCustomSelectedEvents() {
-	return resetCustomSelectedStream.events();
-}
+rpl::producer<> resetCustomSelectedEvents() { return resetCustomSelectedStream.events(); }
 
 bool ignoreRender(RenderPart part) {
 	if (!config) {
@@ -115,88 +99,63 @@ bool ignoreRender(RenderPart part) {
 	const auto ignoreReactions = !config->showReactions;
 
 	return isTakingShot() &&
-	((part == RenderPart::Date && ignoreDate) ||
-		(part == RenderPart::Reactions && ignoreReactions));
+		((part == RenderPart::Date && ignoreDate) || (part == RenderPart::Reactions && ignoreReactions));
 }
 
-bool isTakingShot() {
-	return takingShot;
-}
+bool isTakingShot() { return takingShot; }
 
 bool setChoosingTheme(bool val) {
 	choosingTheme = val;
 	return choosingTheme;
 }
 
-bool isChoosingTheme() {
-	return choosingTheme;
-}
+bool isChoosingTheme() { return choosingTheme; }
 
-rpl::producer<Data::CloudTheme> themeChosen() {
-	return themeChosenStream.events();
-}
+rpl::producer<Data::CloudTheme> themeChosen() { return themeChosenStream.events(); }
 
-void setTheme(Data::CloudTheme theme) {
-	themeChosenStream.fire(std::move(theme));
-}
+void setTheme(Data::CloudTheme theme) { themeChosenStream.fire(std::move(theme)); }
 
-void setPalette(style::palette &palette) {
-	paletteChosenStream.fire(std::move(palette));
-}
+void setPalette(style::palette &palette) { paletteChosenStream.fire(std::move(palette)); }
 
-rpl::producer<style::palette> paletteChosen() {
-	return paletteChosenStream.events();
-}
+rpl::producer<style::palette> paletteChosen() { return paletteChosenStream.events(); }
 
 class MessageShotDelegate final : public HistoryView::DefaultElementDelegate
 {
 public:
-	MessageShotDelegate(
-		not_null<QWidget*> parent,
-		not_null<Ui::ChatStyle*> st,
-		Fn<void()> update,
-		not_null<History*> history);
+	MessageShotDelegate(not_null<QWidget *> parent,
+						not_null<Ui::ChatStyle *> st,
+						Fn<void()> update,
+						not_null<History *> history);
 
 	bool elementAnimationsPaused() override;
-	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
+	not_null<Ui::PathShiftGradient *> elementPathShiftGradient() override;
 	HistoryView::Context elementContext() override;
-	bool elementHideReply(not_null<const HistoryView::Element*> view) override;
+	bool elementHideReply(not_null<const HistoryView::Element *> view) override;
 	bool elementIsChatWide() override;
 
 private:
-	const not_null<QWidget*> _parent;
+	const not_null<QWidget *> _parent;
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
-	not_null<History*> _history;
+	not_null<History *> _history;
 };
 
-MessageShotDelegate::MessageShotDelegate(
-	not_null<QWidget*> parent,
-	not_null<Ui::ChatStyle*> st,
-	Fn<void()> update,
-	not_null<History*> history)
-	: _parent(parent)
-	  , _pathGradient(HistoryView::MakePathShiftGradient(st, update))
-	  , _history(history) {
-}
+MessageShotDelegate::MessageShotDelegate(not_null<QWidget *> parent,
+										 not_null<Ui::ChatStyle *> st,
+										 Fn<void()> update,
+										 not_null<History *> history)
+	: _parent(parent), _pathGradient(HistoryView::MakePathShiftGradient(st, update)), _history(history) {}
 
-bool MessageShotDelegate::elementAnimationsPaused() {
-	return _parent->window()->isActiveWindow();
-}
+bool MessageShotDelegate::elementAnimationsPaused() { return _parent->window()->isActiveWindow(); }
 
-auto MessageShotDelegate::elementPathShiftGradient()
-	-> not_null<Ui::PathShiftGradient*> {
+auto MessageShotDelegate::elementPathShiftGradient() -> not_null<Ui::PathShiftGradient *> {
 	return _pathGradient.get();
 }
 
-HistoryView::Context MessageShotDelegate::elementContext() {
-	return HistoryView::Context::AdminLog;
-}
+HistoryView::Context MessageShotDelegate::elementContext() { return HistoryView::Context::AdminLog; }
 
-bool MessageShotDelegate::elementHideReply(not_null<const HistoryView::Element*> view) {
+bool MessageShotDelegate::elementHideReply(not_null<const HistoryView::Element *> view) {
 	if (const auto reply = view->data()->Get<HistoryMessageReply>()) {
-		const auto replyToPeerId = reply->externalPeerId()
-									   ? reply->externalPeerId()
-									   : _history->peer->id;
+		const auto replyToPeerId = reply->externalPeerId() ? reply->externalPeerId() : _history->peer->id;
 
 		if (reply->fields().manualQuote) {
 			return false;
@@ -207,9 +166,7 @@ bool MessageShotDelegate::elementHideReply(not_null<const HistoryView::Element*>
 	return false;
 }
 
-bool MessageShotDelegate::elementIsChatWide() {
-	return true;
-}
+bool MessageShotDelegate::elementIsChatWide() { return true; }
 
 QImage removeEmptySpaceAround(const QImage &original) {
 	if (original.isNull()) {
@@ -246,11 +203,9 @@ QImage addPadding(const QImage &original) {
 		return {};
 	}
 
-	QImage paddedImage(
-		original.width() + 2 * st::messageShotPadding * style::DevicePixelRatio(),
-		original.height() + 2 * st::messageShotPadding * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied
-	);
+	QImage paddedImage(original.width() + 2 * st::messageShotPadding * style::DevicePixelRatio(),
+					   original.height() + 2 * st::messageShotPadding * style::DevicePixelRatio(),
+					   QImage::Format_ARGB32_Premultiplied);
 	paddedImage.setDevicePixelRatio(style::DevicePixelRatio());
 	paddedImage.fill(Qt::transparent);
 
@@ -269,7 +224,7 @@ QColor makeDefaultBackgroundColor() {
 	return st::boxBg->c.darker(110);
 }
 
-QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
+QImage Make(not_null<QWidget *> box, const ShotConfig &config) {
 	const auto controller = config.controller;
 	const auto st = config.st;
 	auto messages = config.messages;
@@ -280,40 +235,28 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 
 	takingShot = true;
 
-	auto delegate = std::make_unique<MessageShotDelegate>(
-		box,
-		st.get(),
-		[=]
-		{
-			box->update();
-		},
-		messages.front()->history());
+	auto delegate =
+		std::make_unique<MessageShotDelegate>(box, st.get(), [=] { box->update(); }, messages.front()->history());
 
 	// remove deleted messages
 	messages.erase(
-		std::ranges::remove_if(
-			messages,
-			[=](const auto &message)
-			{
-				return !message || !controller->session().data().message(message->fullId());
-			}).begin(),
-		messages.end()
-	);
+		std::ranges::remove_if(messages,
+							   [=](const auto &message)
+							   { return !message || !controller->session().data().message(message->fullId()); })
+			.begin(),
+		messages.end());
 
 	if (messages.empty()) {
 		return {};
 	}
 
-	std::unordered_map<not_null<HistoryItem*>, std::shared_ptr<HistoryView::Element>> createdViews;
+	std::unordered_map<not_null<HistoryItem *>, std::shared_ptr<HistoryView::Element>> createdViews;
 	createdViews.reserve(messages.size());
 	for (const auto &message : messages) {
 		createdViews.emplace(message, message->createView(delegate.get()));
 	}
 
-	auto getView = [=](not_null<HistoryItem*> msg)
-	{
-		return createdViews.at(msg).get();
-	};
+	auto getView = [=](not_null<HistoryItem *> msg) { return createdViews.at(msg).get(); };
 
 	// recalculate blocks
 	if (messages.size() > 1) {
@@ -362,7 +305,7 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 
 	const auto viewport = QRect(0, 0, width, height);
 
-	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> userpics;
+	base::flat_map<not_null<PeerData *>, Ui::PeerUserpicView> userpics;
 	base::flat_map<MsgId, Ui::PeerUserpicView> hiddenSenderUserpics;
 
 	Painter p(&image);
@@ -377,11 +320,7 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 
 		const auto rect = QRect(0, y, width, view->height());
 
-		auto context = controller->defaultChatTheme()->preparePaintContext(
-			st.get(),
-			viewport,
-			rect,
-			true);
+		auto context = controller->defaultChatTheme()->preparePaintContext(st.get(), viewport, rect, true);
 
 		p.translate(0, y);
 		view->draw(p, context);
@@ -393,23 +332,10 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 
 			if (const auto from = message->displayFrom()) {
 				Dialogs::Ui::PaintUserpic(
-					p,
-					from,
-					nullptr,
-					userpics[from],
-					picX,
-					picY,
-					width,
-					st::msgPhotoSize,
-					context.paused);
+					p, from, nullptr, userpics[from], picX, picY, width, st::msgPhotoSize, context.paused);
 			} else if (const auto info = message->displayHiddenSenderInfo()) {
 				if (info->customUserpic.empty()) {
-					info->emptyUserpic.paintCircle(
-						p,
-						picX,
-						picY,
-						width,
-						st::msgPhotoSize);
+					info->emptyUserpic.paintCircle(p, picX, picY, width, st::msgPhotoSize);
 				}
 			}
 		}
@@ -434,7 +360,7 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 	return newResult;
 }
 
-void Wrapper(not_null<HistoryView::ListWidget*> widget, Fn<void()> clearSelected) {
+void Wrapper(not_null<HistoryView::ListWidget *> widget, Fn<void()> clearSelected) {
 	const auto items = widget->getSelectedIds();
 	if (items.empty()) {
 		return;
@@ -446,12 +372,9 @@ void Wrapper(not_null<HistoryView::ListWidget*> widget, Fn<void()> clearSelected
 		return;
 	}
 
-	const auto messages = ranges::views::all(items)
-		| ranges::views::transform([=](const auto item)
-		{
-			return gsl::not_null(session->data().message(item));
-		})
-		| ranges::to_vector;
+	const auto messages = ranges::views::all(items) |
+		ranges::views::transform([=](const auto item) { return gsl::not_null(session->data().message(item)); }) |
+		ranges::to_vector;
 
 	const AyuFeatures::MessageShot::ShotConfig config = {
 		controller,
@@ -459,11 +382,8 @@ void Wrapper(not_null<HistoryView::ListWidget*> widget, Fn<void()> clearSelected
 		messages,
 	};
 	auto box = Box<MessageShotBox>(config);
-	box->boxClosing() | rpl::start_with_next([=]
-	{
-		clearSelected();
-	}, box->lifetime());
+	box->boxClosing() | rpl::start_with_next([=] { clearSelected(); }, box->lifetime());
 	Ui::show(std::move(box));
 }
 
-}
+} // namespace AyuFeatures::MessageShot

@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -20,9 +20,7 @@ namespace AyuWorker {
 
 std::unordered_map<ID, bool> state;
 
-void markAsOnline(not_null<Main::Session*> session) {
-	state[session->userId().bare] = true;
-}
+void markAsOnline(not_null<Main::Session *> session) { state[session->userId().bare] = true; }
 
 void lateInit() {
 	for (const auto &[index, account] : Core::App().domain().accounts()) {
@@ -59,12 +57,11 @@ void runOnce() {
 				}
 
 				if (invalidateAll || state[id] || session->user()->lastseen().isOnline(t)) {
-					session->api().request(MTPaccount_UpdateStatus(
-						MTP_bool(true)
-					)).send();
+					session->api().request(MTPaccount_UpdateStatus(MTP_bool(true))).send();
 					state[id] = false;
 
-					DEBUG_LOG(("[AyuGram] Sent offline for account with uid %1, invalidate %2").arg(id).arg(invalidateAll));
+					DEBUG_LOG(
+						("[ViGram] Sent offline for account with uid %1, invalidate %2").arg(id).arg(invalidateAll));
 				}
 			}
 		}
@@ -83,4 +80,4 @@ void initialize() {
 	t.detach();
 }
 
-}
+} // namespace AyuWorker

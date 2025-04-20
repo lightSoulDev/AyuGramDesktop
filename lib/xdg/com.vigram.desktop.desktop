@@ -1,11 +1,11 @@
 [Desktop Entry]
-Name=AyuGram Desktop
-Comment=Desktop version of AyuGram - ToS breaking Telegram client
-TryExec=ayugram-desktop
-Exec=env DESKTOPINTEGRATION=1 ayugram-desktop -- %u
-Icon=ayugram
+Name=ViGram Desktop
+Comment=Desktop version of ViGram - ToS breaking Telegram client
+TryExec=vigram-desktop
+Exec=env DESKTOPINTEGRATION=1 vigram-desktop -- %u
+Icon=vigram
 Terminal=false
-StartupWMClass=AyuGram
+StartupWMClass=ViGram
 Type=Application
 Categories=Chat;Network;InstantMessaging;Qt;
 MimeType=x-scheme-handler/tg;x-scheme-handler/tonsite;
@@ -17,6 +17,6 @@ X-GNOME-UsesNotifications=true
 X-GNOME-SingleWindow=true
 
 [Desktop Action quit]
-Exec=ayugram-desktop -quit
-Name=Quit AyuGram
+Exec=vigram-desktop -quit
+Name=Quit ViGram
 Icon=application-exit
