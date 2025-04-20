@@ -1,14 +1,14 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
 //
 // Copyright @Radolyn, 2025
 #include "icon_picker.h"
+#include "tray.h"
 #include "ayu/ayu_settings.h"
 #include "core/application.h"
 #include "styles/style_layers.h"
-#include "tray.h"
 
 #include "ayu/ui/ayu_logo.h"
 #include "main/main_domain.h"
@@ -47,15 +47,22 @@ void drawIcon(QPainter &p, const QImage &icon, int xOffset, int yOffset, float s
 	p.setPen(QPen(st::boxDividerBg, 0));
 	p.setBrush(QBrush(st::boxDividerBg));
 	p.setOpacity(strokeOpacity);
-	p.drawRoundedRect(xOffset + st::cpSelectedPadding,
-					  yOffset + st::cpSelectedPadding,
-					  st::cpIconSize + st::cpSelectedPadding * 2,
-					  st::cpIconSize + st::cpSelectedPadding * 2,
-					  st::cpSelectedRounding,
-					  st::cpSelectedRounding);
+	p.drawRoundedRect(
+		xOffset + st::cpSelectedPadding,
+		yOffset + st::cpSelectedPadding,
+		st::cpIconSize + st::cpSelectedPadding * 2,
+		st::cpIconSize + st::cpSelectedPadding * 2,
+		st::cpSelectedRounding,
+		st::cpSelectedRounding
+	);
 	p.restore();
 
-	auto rect = QRect(xOffset + st::cpImagePadding, yOffset + st::cpImagePadding, st::cpIconSize, st::cpIconSize);
+	auto rect = QRect(
+		xOffset + st::cpImagePadding,
+		yOffset + st::cpImagePadding,
+		st::cpIconSize,
+		st::cpIconSize
+	);
 	p.drawImage(rect, icon);
 }
 
@@ -71,7 +78,8 @@ void applyIcon() {
 	Core::App().domain().notifyUnreadBadgeChanged();
 }
 
-IconPicker::IconPicker(QWidget *parent) : RpWidget(parent) {
+IconPicker::IconPicker(QWidget *parent)
+	: RpWidget(parent) {
 	setMinimumSize(st::boxWidth, (st::cpIconSize + st::cpPadding) * rows - st::cpPadding);
 }
 
@@ -91,8 +99,8 @@ void IconPicker::paintEvent(QPaintEvent *e) {
 				continue;
 			}
 
-			auto icon = AyuAssets::loadPreview(iconName).scaled(
-				st::cpIconSize, st::cpIconSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+			auto icon = AyuAssets::loadPreview(iconName)
+				.scaled(st::cpIconSize, st::cpIconSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
 
 			auto opacity = 0.0f;
 			if (iconName == wasSelected) {
@@ -101,11 +109,13 @@ void IconPicker::paintEvent(QPaintEvent *e) {
 				opacity = wasSelected.isEmpty() ? 1.0f : animation.value(1.0f);
 			}
 
-			drawIcon(p,
-					 icon,
-					 (st::cpIconSize + st::cpSpacingX) * i + offset,
-					 row * (st::cpIconSize + st::cpSpacingY),
-					 opacity);
+			drawIcon(
+				p,
+				icon,
+				(st::cpIconSize + st::cpSpacingX) * i + offset,
+				row * (st::cpIconSize + st::cpSpacingY),
+				opacity
+			);
 		}
 	}
 }
@@ -122,8 +132,8 @@ void IconPicker::mousePressEvent(QMouseEvent *e) {
 			auto const xOffset = (st::cpIconSize + st::cpSpacingX) * i + st::cpPadding;
 			auto const yOffset = row * (st::cpIconSize + st::cpSpacingY);
 
-			if (x >= xOffset && x <= xOffset + st::cpIconSize && e->pos().y() >= yOffset &&
-				e->pos().y() <= yOffset + st::cpIconSize) {
+			if (x >= xOffset && x <= xOffset + st::cpIconSize && e->pos().y() >= yOffset
+				&& e->pos().y() <= yOffset + st::cpIconSize) {
 				const auto &iconName = icons[idx];
 				if (iconName.isEmpty()) {
 					break;
@@ -131,7 +141,16 @@ void IconPicker::mousePressEvent(QMouseEvent *e) {
 
 				if (settings->appIcon != iconName) {
 					wasSelected = settings->appIcon;
-					animation.start([=] { update(); }, 0.0, 1.0, 200, anim::easeOutCubic);
+					animation.start(
+						[=]
+						{
+							update();
+						},
+						0.0,
+						1.0,
+						200,
+						anim::easeOutCubic
+					);
 
 					settings->set_appIcon(iconName);
 					changed = true;

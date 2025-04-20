@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -17,24 +17,36 @@
 #include "ayu/features/streamer_mode/platform/streamer_mode_linux.h"
 #endif // else for Q_OS_WINRT || Q_OS_WIN || Q_OS_MAC
 
-namespace AyuFeatures::StreamerMode {
+namespace AyuFeatures::StreamerMode
+{
 
 bool isEnabledVal;
 
-bool isEnabled() { return isEnabledVal; }
+bool isEnabled()
+{
+	return isEnabledVal;
+}
 
-void enable() {
+void enable()
+{
 	isEnabledVal = true;
 	Impl::enableHook();
 }
 
-void disable() {
+void disable()
+{
 	isEnabledVal = false;
 	Impl::disableHook();
 }
 
-void hideWidgetWindow(QWidget *widget) { Impl::hideWidgetWindow(widget); }
+void hideWidgetWindow(QWidget *widget)
+{
+	Impl::hideWidgetWindow(widget);
+}
 
-void showWidgetWindow(QWidget *widget) { Impl::showWidgetWindow(widget); }
+void showWidgetWindow(QWidget *widget)
+{
+	Impl::showWidgetWindow(widget);
+}
 
-} // namespace AyuFeatures::StreamerMode
+}

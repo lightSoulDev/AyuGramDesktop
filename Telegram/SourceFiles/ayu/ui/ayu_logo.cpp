@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -17,7 +17,7 @@ void loadAppIco() {
 	auto settings = &AyuSettings::getInstance();
 
 	QString appDataPath = QDir::fromNativeSeparators(qgetenv("APPDATA"));
-	QString tempIconPath = appDataPath + "/ViGram.ico";
+	QString tempIconPath = appDataPath + "/AyuGram.ico";
 
 	// workaround for read-only file
 	auto f = QFile(tempIconPath);
@@ -43,9 +43,13 @@ void loadIcons() {
 	}
 }
 
-QImage loadPreview(QString name) { return QImage(qsl(":/gui/art/ayu/%1/app_preview.png").arg(name)); }
+QImage loadPreview(QString name) {
+	return QImage(qsl(":/gui/art/ayu/%1/app_preview.png").arg(name));
+}
 
-QString currentAppLogoName() { return LAST_LOADED_NAME; }
+QString currentAppLogoName() {
+	return LAST_LOADED_NAME;
+}
 
 QImage currentAppLogo() {
 	loadIcons();
@@ -57,4 +61,4 @@ QImage currentAppLogoNoMargin() {
 	return LAST_LOADED_NO_MARGIN;
 }
 
-} // namespace AyuAssets
+}

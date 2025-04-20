@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -12,8 +12,8 @@
 #include "history/view/history_view_element.h"
 #include "menu/menu_antispam_validator.h"
 #include "mtproto/sender.h"
-#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 #include "ui/widgets/tooltip.h"
 
 struct ChatRestrictionsInfo;
@@ -44,22 +44,28 @@ namespace MessageHistory {
 
 class SectionMemento;
 
-class InnerWidget final : public Ui::RpWidget, public Ui::AbstractTooltipShower, public HistoryView::ElementDelegate
+class InnerWidget final
+	: public Ui::RpWidget, public Ui::AbstractTooltipShower, public HistoryView::ElementDelegate
 {
 public:
-	InnerWidget(QWidget *parent,
-				not_null<Window::SessionController *> controller,
-				not_null<PeerData *> peer,
-				HistoryItem *item,
-				ID topicId);
+	InnerWidget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		HistoryItem *item,
+		ID topicId);
 
 	[[nodiscard]] Main::Session &session() const;
 
-	[[nodiscard]] not_null<Ui::ChatTheme *> theme() const { return _theme.get(); }
+	[[nodiscard]] not_null<Ui::ChatTheme*> theme() const {
+		return _theme.get();
+	}
 
 	[[nodiscard]] rpl::producer<int> scrollToSignal() const;
 
-	[[nodiscard]] not_null<PeerData *> peer() const { return _peer; }
+	[[nodiscard]] not_null<PeerData*> peer() const {
+		return _peer;
+	}
 
 	// Set the correct scroll position after being resized.
 	void restoreScrollPosition();
@@ -69,8 +75,8 @@ public:
 		return TWidget::resizeToWidth(newWidth);
 	}
 
-	void saveState(not_null<SectionMemento *> memento);
-	void restoreState(not_null<SectionMemento *> memento);
+	void saveState(not_null<SectionMemento*> memento);
+	void restoreState(not_null<SectionMemento*> memento);
 
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
@@ -79,36 +85,62 @@ public:
 
 	// HistoryView::ElementDelegate interface.
 	HistoryView::Context elementContext() override;
-	bool elementUnderCursor(not_null<const HistoryView::Element *> view) override;
+	bool elementUnderCursor(
+		not_null<const HistoryView::Element*> view) override;
 	HistoryView::SelectionModeResult elementInSelectionMode(const HistoryView::Element *) override;
-	bool elementIntersectsRange(not_null<const HistoryView::Element *> view, int from, int till) override;
-	void elementStartStickerLoop(not_null<const HistoryView::Element *> view) override;
-	void elementShowPollResults(not_null<PollData *> poll, FullMsgId context) override;
-	void elementOpenPhoto(not_null<PhotoData *> photo, FullMsgId context) override;
-	void
-	elementOpenDocument(not_null<DocumentData *> document, FullMsgId context, bool showInMediaView = false) override;
+	bool elementIntersectsRange(
+		not_null<const HistoryView::Element*> view,
+		int from,
+		int till) override;
+	void elementStartStickerLoop(
+		not_null<const HistoryView::Element*> view) override;
+	void elementShowPollResults(
+		not_null<PollData*> poll,
+		FullMsgId context) override;
+	void elementOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) override;
+	void elementOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView = false) override;
 	void elementCancelUpload(const FullMsgId &context) override;
-	void elementShowTooltip(const TextWithEntities &text, Fn<void()> hiddenCallback) override;
+	void elementShowTooltip(
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback) override;
 	bool elementAnimationsPaused() override;
-	bool elementHideReply(not_null<const HistoryView::Element *> view) override;
-	bool elementShownUnread(not_null<const HistoryView::Element *> view) override;
-	void elementSendBotCommand(const QString &command, const FullMsgId &context) override;
-	void elementSearchInList(const QString &query, const FullMsgId &context) override;
-	void elementHandleViaClick(not_null<UserData *> bot) override;
+	bool elementHideReply(
+		not_null<const HistoryView::Element*> view) override;
+	bool elementShownUnread(
+		not_null<const HistoryView::Element*> view) override;
+	void elementSendBotCommand(
+		const QString &command,
+		const FullMsgId &context) override;
+	void elementSearchInList(
+		const QString &query,
+		const FullMsgId &context) override;
+	void elementHandleViaClick(not_null<UserData*> bot) override;
 	bool elementIsChatWide() override;
-	not_null<Ui::PathShiftGradient *> elementPathShiftGradient() override;
+	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullReplyTo &to) override;
-	void elementStartInteraction(not_null<const HistoryView::Element *> view) override;
-	void elementStartPremium(not_null<const HistoryView::Element *> view, HistoryView::Element *replacing) override;
-	void elementCancelPremium(not_null<const HistoryView::Element *> view) override;
-	void elementStartEffect(not_null<const HistoryView::Element *> view, HistoryView::Element *replacing) override;
-	QString elementAuthorRank(not_null<const HistoryView::Element *> view) override;
-	bool elementHideTopicButton(not_null<const HistoryView::Element *> view) override;
+	void elementStartInteraction(
+		not_null<const HistoryView::Element*> view) override;
+	void elementStartPremium(
+		not_null<const HistoryView::Element*> view,
+		HistoryView::Element *replacing) override;
+	void elementCancelPremium(not_null<const HistoryView::Element*> view) override;
+	void elementStartEffect(
+		not_null<const HistoryView::Element*> view,
+		HistoryView::Element *replacing) override;
+	QString elementAuthorRank(not_null<const HistoryView::Element*> view) override;
+	bool elementHideTopicButton(not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 
 protected:
-	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
 
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
@@ -157,19 +189,19 @@ private:
 	void mouseActionCancel();
 	void updateSelected();
 	void performDrag();
-	int itemTop(not_null<const Element *> view) const;
+	int itemTop(not_null<const Element*> view) const;
 	void repaintItem(const Element *view);
-	void refreshItem(not_null<const Element *> view);
-	void resizeItem(not_null<Element *> view);
+	void refreshItem(not_null<const Element*> view);
+	void resizeItem(not_null<Element*> view);
 	QPoint mapPointToItem(QPoint point, const Element *view) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
-	void savePhotoToFile(not_null<PhotoData *> photo);
-	void saveDocumentToFile(not_null<DocumentData *> document);
-	void copyContextImage(not_null<PhotoData *> photo);
-	void showStickerPackInfo(not_null<DocumentData *> document);
-	void cancelContextDownload(not_null<DocumentData *> document);
-	void showContextInFolder(not_null<DocumentData *> document);
+	void savePhotoToFile(not_null<PhotoData*> photo);
+	void saveDocumentToFile(not_null<DocumentData*> document);
+	void copyContextImage(not_null<PhotoData*> photo);
+	void showStickerPackInfo(not_null<DocumentData*> document);
+	void cancelContextDownload(not_null<DocumentData*> document);
+	void showContextInFolder(not_null<DocumentData*> document);
 	void openContextGif(FullMsgId itemId);
 	void copyContextText(FullMsgId itemId);
 	void copySelectedText();
@@ -181,7 +213,7 @@ private:
 	void updateSize();
 	void updateMinMaxIds();
 	void updateEmptyText();
-	void paintEmpty(Painter &p, not_null<const Ui::ChatStyle *> st);
+	void paintEmpty(Painter &p, not_null<const Ui::ChatStyle*> st);
 	void addMessages(Direction direction, const std::vector<AyuMessageBase> &messages);
 	Element *viewForItem(const HistoryItem *item);
 
@@ -217,11 +249,11 @@ private:
 	template<typename Method>
 	void enumerateDates(Method method);
 
-	const not_null<Window::SessionController *> _controller;
-	const not_null<PeerData *> _peer;
+	const not_null<Window::SessionController*> _controller;
+	const not_null<PeerData*> _peer;
 	HistoryItem *_item;
 	ID _topicId;
-	const not_null<History *> _history;
+	const not_null<History*> _history;
 	MTP::Sender _api;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
@@ -229,11 +261,11 @@ private:
 
 	std::vector<OwnedItem> _items;
 	std::set<uint64> _messageIds;
-	std::map<not_null<const HistoryItem *>, not_null<Element *>> _itemsByData;
-	base::flat_map<not_null<const HistoryItem *>, TimeId> _itemDates;
+	std::map<not_null<const HistoryItem*>, not_null<Element*>> _itemsByData;
+	base::flat_map<not_null<const HistoryItem*>, TimeId> _itemDates;
 	base::flat_set<FullMsgId> _animatedStickersPlayed;
-	base::flat_map<not_null<PeerData *>, Ui::PeerUserpicView> _userpics;
-	base::flat_map<not_null<PeerData *>, Ui::PeerUserpicView> _userpicsCache;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpics;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpicsCache;
 	int _itemsTop = 0;
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;
@@ -281,6 +313,7 @@ private:
 	base::Timer _trippleClickTimer;
 
 	rpl::event_stream<int> _scrollToSignal;
+
 };
 
 } // namespace MessageHistory

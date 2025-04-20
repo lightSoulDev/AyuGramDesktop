@@ -19,9 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 // used in Updater.cpp and Setup.iss for Windows
 constexpr auto AppId = "{53F49750-6209-4FBF-9CA8-7A333C87D666}"_cs;
-constexpr auto AppNameOld = "ViGram for Windows"_cs;
-constexpr auto AppName = "ViGram Desktop"_cs;
-constexpr auto AppFile = "ViGram"_cs;
+constexpr auto AppNameOld = "AyuGram for Windows"_cs;
+constexpr auto AppName = "AyuGram Desktop"_cs;
+constexpr auto AppFile = "AyuGram"_cs;
 constexpr auto AppVersion = 5012003;
 constexpr auto AppVersionStr = "5.12.3";
 constexpr auto AppBetaVersion = false;

@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -11,13 +11,16 @@
 namespace TapticEngine {
 namespace Impl {
 
-void generateGeneric() {}
+void generateGeneric() {
+}
 
-void generateAlignment() {}
+void generateAlignment() {
+}
 
-void generateLevelChange() {}
+void generateLevelChange() {
+}
 
-} // namespace Impl
-} // namespace TapticEngine
+}
+}
 
 #endif

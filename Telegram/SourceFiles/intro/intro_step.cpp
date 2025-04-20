@@ -7,39 +7,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/intro_step.h"
 
-#include "api/api_peer_photo.h"
-#include "apiwrap.h"
-#include "boxes/abstract_box.h"
-#include "core/application.h"
-#include "core/core_settings.h"
-#include "data/data_auto_download.h"
-#include "data/data_chat_filters.h"
-#include "data/data_session.h"
-#include "data/data_user.h"
-#include "intro/intro_signup.h"
 #include "intro/intro_widget.h"
-#include "lang/lang_cloud_manager.h"
-#include "lang/lang_instance.h"
+#include "intro/intro_signup.h"
+#include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_instance.h"
+#include "lang/lang_cloud_manager.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "boxes/abstract_box.h"
+#include "core/application.h"
+#include "core/core_settings.h"
+#include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "mainwindow.h"
-#include "storage/localstorage.h"
-#include "storage/storage_account.h"
-#include "styles/style_intro.h"
-#include "styles/style_window.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/effects/slide_animation.h"
 #include "ui/text/text_utilities.h"
-#include "ui/ui_utility.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/effects/slide_animation.h"
+#include "ui/ui_utility.h"
+#include "data/data_user.h"
+#include "data/data_auto_download.h"
+#include "data/data_session.h"
+#include "data/data_chat_filters.h"
 #include "window/window_controller.h"
+#include "styles/style_intro.h"
+#include "styles/style_window.h"
 
-// ViGram includes
+// AyuGram includes
 #include "ayu/ui/ayu_logo.h"
 
 
@@ -47,7 +47,7 @@ namespace Intro {
 namespace details {
 namespace {
 
-void PrepareSupportMode(not_null<Main::Session *> session) {
+void PrepareSupportMode(not_null<Main::Session*> session) {
 	using ::Data::AutoDownload::Full;
 
 	anim::SetDisabled(true);
@@ -64,45 +64,54 @@ void PrepareSupportMode(not_null<Main::Session *> session) {
 
 Step::CoverAnimation::~CoverAnimation() = default;
 
-Step::Step(QWidget *parent, not_null<Main::Account *> account, not_null<Data *> data, bool hasCover)
-	: RpWidget(parent), _account(account), _data(data), _hasCover(hasCover),
-	  _title(this, _hasCover ? st::introCoverTitle : st::introTitle),
-	  _description(this,
-				   object_ptr<Ui::FlatLabel>(this, _hasCover ? st::introCoverDescription : st::introDescription)) {
+Step::Step(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	not_null<Data*> data,
+	bool hasCover)
+: RpWidget(parent)
+, _account(account)
+, _data(data)
+, _hasCover(hasCover)
+, _title(this, _hasCover ? st::introCoverTitle : st::introTitle)
+, _description(
+	this,
+	object_ptr<Ui::FlatLabel>(
+		this,
+		_hasCover
+			? st::introCoverDescription
+			: st::introDescription)) {
 	hide();
-	style::PaletteChanged() |
-		rpl::start_with_next(
-			[=]
-			{
-				if (!_coverMask.isNull()) {
-					_coverMask = QPixmap();
-					prepareCoverMask();
-				}
-			},
-			lifetime());
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		if (!_coverMask.isNull()) {
+			_coverMask = QPixmap();
+			prepareCoverMask();
+		}
+	}, lifetime());
 
-	_errorText.value() | rpl::start_with_next([=](const QString &text) { refreshError(text); }, lifetime());
+	_errorText.value(
+	) | rpl::start_with_next([=](const QString &text) {
+		refreshError(text);
+	}, lifetime());
 
-	_titleText.value() |
-		rpl::start_with_next(
-			[=](const QString &text)
-			{
-				_title->setText(text);
-				updateLabelsPosition();
-			},
-			lifetime());
+	_titleText.value(
+	) | rpl::start_with_next([=](const QString &text) {
+		_title->setText(text);
+		updateLabelsPosition();
+	}, lifetime());
 
-	_descriptionText.value() |
-		rpl::start_with_next(
-			[=](const TextWithEntities &text)
-			{
-				const auto label = _description->entity();
-				const auto hasSpoiler = ranges::contains(text.entities, EntityType::Spoiler, &EntityInText::type);
-				label->setMarkedText(text);
-				label->setAttribute(Qt::WA_TransparentForMouseEvents, hasSpoiler);
-				updateLabelsPosition();
-			},
-			lifetime());
+	_descriptionText.value(
+	) | rpl::start_with_next([=](const TextWithEntities &text) {
+		const auto label = _description->entity();
+		const auto hasSpoiler = ranges::contains(
+			text.entities,
+			EntityType::Spoiler,
+			&EntityInText::type);
+		label->setMarkedText(text);
+		label->setAttribute(Qt::WA_TransparentForMouseEvents, hasSpoiler);
+		updateLabelsPosition();
+	}, lifetime());
 }
 
 Step::~Step() = default;
@@ -114,12 +123,16 @@ MTP::Sender &Step::api() const {
 	return *_api;
 }
 
-void Step::apiClear() { _api.reset(); }
+void Step::apiClear() {
+	_api.reset();
+}
 
-rpl::producer<QString> Step::nextButtonText() const { return tr::lng_intro_next(); }
+rpl::producer<QString> Step::nextButtonText() const {
+	return tr::lng_intro_next();
+}
 
-rpl::producer<const style::RoundButton *> Step::nextButtonStyle() const {
-	return rpl::single((const style::RoundButton *) (nullptr));
+rpl::producer<const style::RoundButton*> Step::nextButtonStyle() const {
+	return rpl::single((const style::RoundButton*)(nullptr));
 }
 
 void Step::goBack() {
@@ -141,32 +154,35 @@ void Step::goReplace(Step *step, Animate animate) {
 }
 
 void Step::finish(const MTPauth_Authorization &auth, QImage &&photo) {
-	auth.match(
-		[&](const MTPDauth_authorization &data)
-		{
-			if (data.vuser().type() != mtpc_user || !data.vuser().c_user().is_self()) {
-				showError(rpl::single(Lang::Hard::ServerError())); // wtf?
-				return;
-			}
-			finish(data.vuser(), std::move(photo));
-		},
-		[&](const MTPDauth_authorizationSignUpRequired &data)
-		{
-			if (const auto terms = data.vterms_of_service()) {
-				terms->match([&](const MTPDhelp_termsOfService &data)
-							 { getData()->termsLock = Window::TermsLock::FromMTP(nullptr, data); });
-			} else {
-				getData()->termsLock = Window::TermsLock();
-			}
-			goReplace<SignupWidget>(Animate::Forward);
-		});
+	auth.match([&](const MTPDauth_authorization &data) {
+		if (data.vuser().type() != mtpc_user
+			|| !data.vuser().c_user().is_self()) {
+			showError(rpl::single(Lang::Hard::ServerError())); // wtf?
+			return;
+		}
+		finish(data.vuser(), std::move(photo));
+	}, [&](const MTPDauth_authorizationSignUpRequired &data) {
+		if (const auto terms = data.vterms_of_service()) {
+			terms->match([&](const MTPDhelp_termsOfService &data) {
+				getData()->termsLock = Window::TermsLock::FromMTP(
+					nullptr,
+					data);
+			});
+		} else {
+			getData()->termsLock = Window::TermsLock();
+		}
+		goReplace<SignupWidget>(Animate::Forward);
+	});
 }
 
 void Step::finish(const MTPUser &user, QImage &&photo) {
-	if (user.type() != mtpc_user || !user.c_user().is_self() || !user.c_user().vid().v) {
+	if (user.type() != mtpc_user
+		|| !user.c_user().is_self()
+		|| !user.c_user().vid().v) {
 		// No idea what to do here.
 		// We could've reset intro and MTP, but this really should not happen.
-		Ui::show(Ui::MakeInformBox("Internal error: bad user.is_self() after sign in."));
+		Ui::show(Ui::MakeInformBox(
+			"Internal error: bad user.is_self() after sign in."));
 		return;
 	}
 
@@ -174,33 +190,32 @@ void Step::finish(const MTPUser &user, QImage &&photo) {
 	for (const auto &[index, existing] : Core::App().domain().accounts()) {
 		const auto raw = existing.get();
 		if (const auto session = raw->maybeSession()) {
-			if (raw->mtp().environment() == _account->mtp().environment() &&
-				UserId(user.c_user().vid()) == session->userId()) {
+			if (raw->mtp().environment() == _account->mtp().environment()
+				&& UserId(user.c_user().vid()) == session->userId()) {
 				_account->logOut();
-				crl::on_main(raw,
-							 [=]
-							 {
-								 Core::App().domain().activate(raw);
-								 Local::sync();
-							 });
+				crl::on_main(raw, [=] {
+					Core::App().domain().activate(raw);
+					Local::sync();
+				});
 				return;
 			}
 		}
 	}
 
-	api()
-		.request(MTPmessages_GetDialogFilters())
-		.done(
-			[=](const MTPmessages_DialogFilters &result)
-			{
-				const auto &d = result.data();
-				createSession(user, photo, d.vfilters().v, d.is_tags_enabled());
-			})
-		.fail([=] { createSession(user, photo, QVector<MTPDialogFilter>(), false); })
-		.send();
+	api().request(MTPmessages_GetDialogFilters(
+	)).done([=](const MTPmessages_DialogFilters &result) {
+		const auto &d = result.data();
+		createSession(user, photo, d.vfilters().v, d.is_tags_enabled());
+	}).fail([=] {
+		createSession(user, photo, QVector<MTPDialogFilter>(), false);
+	}).send();
 }
 
-void Step::createSession(const MTPUser &user, QImage photo, const QVector<MTPDialogFilter> &filters, bool tagsEnabled) {
+void Step::createSession(
+		const MTPUser &user,
+		QImage photo,
+		const QVector<MTPDialogFilter> &filters,
+		bool tagsEnabled) {
 	// Save the default language if we've suggested some other and user ignored it.
 	const auto currentId = Lang::Id();
 	const auto defaultId = Lang::DefaultLanguageId();
@@ -211,7 +226,10 @@ void Step::createSession(const MTPUser &user, QImage photo, const QVector<MTPDia
 	}
 
 	auto settings = std::make_unique<Main::SessionSettings>();
-	const auto hasFilters = ranges::contains(filters, mtpc_dialogFilter, &MTPDialogFilter::type);
+	const auto hasFilters = ranges::contains(
+		filters,
+		mtpc_dialogFilter,
+		&MTPDialogFilter::type);
 	settings->setDialogsFiltersEnabled(hasFilters);
 
 	const auto account = _account;
@@ -226,7 +244,9 @@ void Step::createSession(const MTPUser &user, QImage photo, const QVector<MTPDia
 		session.saveSettingsDelayed();
 	}
 	if (!photo.isNull()) {
-		session.api().peerPhoto().upload(session.user(), {std::move(photo)});
+		session.api().peerPhoto().upload(
+			session.user(),
+			{ std::move(photo) });
 	}
 	account->appConfig().refresh();
 	if (session.supportMode()) {
@@ -240,7 +260,9 @@ void Step::paintEvent(QPaintEvent *e) {
 	paintAnimated(p, e->rect());
 }
 
-void Step::resizeEvent(QResizeEvent *e) { updateLabelsPosition(); }
+void Step::resizeEvent(QResizeEvent *e) {
+	updateLabelsPosition();
+}
 
 void Step::updateLabelsPosition() {
 	Ui::SendPendingMoveResizeEvents(_description->entity());
@@ -262,9 +284,13 @@ void Step::updateLabelsPosition() {
 	}
 }
 
-int Step::errorTop() const { return contentTop() + st::introErrorTop; }
+int Step::errorTop() const {
+	return contentTop() + st::introErrorTop;
+}
 
-void Step::setTitleText(rpl::producer<QString> titleText) { _titleText = std::move(titleText); }
+void Step::setTitleText(rpl::producer<QString> titleText) {
+	_titleText = std::move(titleText);
+}
 
 void Step::setDescriptionText(v::text::data &&descriptionText) {
 	_descriptionText = v::text::take_marked(std::move(descriptionText));
@@ -310,8 +336,7 @@ bool Step::paintAnimated(QPainter &p, QRect clip) {
 	auto departingAlpha = 1. - progress;
 	auto showCoverMethod = progress;
 	auto hideCoverMethod = progress;
-	auto coverTop = (hasCover() ? anim::interpolate(-st::introCoverHeight, 0, showCoverMethod)
-								: anim::interpolate(0, -st::introCoverHeight, hideCoverMethod));
+	auto coverTop = (hasCover() ? anim::interpolate(-st::introCoverHeight, 0, showCoverMethod) : anim::interpolate(0, -st::introCoverHeight, hideCoverMethod));
 
 	paintCover(p, coverTop);
 
@@ -326,44 +351,62 @@ bool Step::paintAnimated(QPainter &p, QRect clip) {
 }
 
 void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
-	const auto bad = [](const char *type) { LOG(("API Error: Should not be '%1'.").arg(type)); };
+	const auto bad = [](const char *type) {
+		LOG(("API Error: Should not be '%1'.").arg(type));
+	};
 	getData()->codeByTelegram = false;
 	getData()->codeByFragmentUrl = QString();
-	data.vtype().match(
-		[&](const MTPDauth_sentCodeTypeApp &data)
-		{
-			getData()->codeByTelegram = true;
-			getData()->codeLength = data.vlength().v;
-		},
-		[&](const MTPDauth_sentCodeTypeSms &data) { getData()->codeLength = data.vlength().v; },
-		[&](const MTPDauth_sentCodeTypeFragmentSms &data)
-		{
-			getData()->codeByFragmentUrl = qs(data.vurl());
-			getData()->codeLength = data.vlength().v;
-		},
-		[&](const MTPDauth_sentCodeTypeCall &data) { getData()->codeLength = data.vlength().v; },
-		[&](const MTPDauth_sentCodeTypeFlashCall &) { bad("FlashCall"); },
-		[&](const MTPDauth_sentCodeTypeMissedCall &) { bad("MissedCall"); },
-		[&](const MTPDauth_sentCodeTypeFirebaseSms &) { bad("FirebaseSms"); },
-		[&](const MTPDauth_sentCodeTypeEmailCode &) { bad("EmailCode"); },
-		[&](const MTPDauth_sentCodeTypeSmsWord &) { bad("SmsWord"); },
-		[&](const MTPDauth_sentCodeTypeSmsPhrase &) { bad("SmsPhrase"); },
-		[&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) { bad("SetUpEmailRequired"); });
+	data.vtype().match([&](const MTPDauth_sentCodeTypeApp &data) {
+		getData()->codeByTelegram = true;
+		getData()->codeLength = data.vlength().v;
+	}, [&](const MTPDauth_sentCodeTypeSms &data) {
+		getData()->codeLength = data.vlength().v;
+	}, [&](const MTPDauth_sentCodeTypeFragmentSms &data) {
+		getData()->codeByFragmentUrl = qs(data.vurl());
+		getData()->codeLength = data.vlength().v;
+	}, [&](const MTPDauth_sentCodeTypeCall &data) {
+		getData()->codeLength = data.vlength().v;
+	}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
+		bad("FlashCall");
+	}, [&](const MTPDauth_sentCodeTypeMissedCall &) {
+		bad("MissedCall");
+	}, [&](const MTPDauth_sentCodeTypeFirebaseSms &) {
+		bad("FirebaseSms");
+	}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
+		bad("EmailCode");
+	}, [&](const MTPDauth_sentCodeTypeSmsWord &) {
+		bad("SmsWord");
+	}, [&](const MTPDauth_sentCodeTypeSmsPhrase &) {
+		bad("SmsPhrase");
+	}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
+		bad("SetUpEmailRequired");
+	});
 }
 
-void Step::showDescription() { _description->show(anim::type::normal); }
+void Step::showDescription() {
+	_description->show(anim::type::normal);
+}
 
-void Step::hideDescription() { _description->hide(anim::type::normal); }
+void Step::hideDescription() {
+	_description->hide(anim::type::normal);
+}
 
 void Step::paintContentSnapshot(QPainter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden) {
 	if (!snapshot.isNull()) {
-		const auto contentTop =
-			anim::interpolate(height() - (snapshot.height() / style::DevicePixelRatio()), height(), howMuchHidden);
+		const auto contentTop = anim::interpolate(
+			height() - (snapshot.height() / style::DevicePixelRatio()),
+			height(),
+			howMuchHidden);
 		if (contentTop < height()) {
 			p.setOpacity(alpha);
-			p.drawPixmap(QPoint(contentLeft(), contentTop),
-						 snapshot,
-						 QRect(0, 0, snapshot.width(), (height() - contentTop) * style::DevicePixelRatio()));
+			p.drawPixmap(
+				QPoint(contentLeft(), contentTop),
+				snapshot,
+				QRect(
+					0,
+					0,
+					snapshot.width(),
+					(height() - contentTop) * style::DevicePixelRatio()));
 		}
 	}
 }
@@ -374,7 +417,7 @@ void Step::prepareCoverMask() {
 	auto maskWidth = style::DevicePixelRatio();
 	auto maskHeight = st::introCoverHeight * style::DevicePixelRatio();
 	auto mask = QImage(maskWidth, maskHeight, QImage::Format_ARGB32_Premultiplied);
-	auto maskInts = reinterpret_cast<uint32 *>(mask.bits());
+	auto maskInts = reinterpret_cast<uint32*>(mask.bits());
 	Assert(mask.depth() == (sizeof(uint32) << 3));
 	auto maskIntsPerLineAdded = (mask.bytesPerLine() >> 2) - maskWidth;
 	Assert(maskIntsPerLineAdded >= 0);
@@ -396,16 +439,18 @@ void Step::paintCover(QPainter &p, int top) {
 		p.drawPixmap(
 			QRect(0, 0, width(), coverHeight),
 			_coverMask,
-			QRect(0, -top * style::DevicePixelRatio(), _coverMask.width(), coverHeight * style::DevicePixelRatio()));
+			QRect(
+				0,
+				-top * style::DevicePixelRatio(),
+				_coverMask.width(),
+				coverHeight * style::DevicePixelRatio()));
 	}
 
 	auto left = 0;
 	auto right = 0;
 	if (width() < st::introCoverMaxWidth) {
 		auto iconsMaxSkip = st::introCoverMaxWidth - st::introCoverLeft.width() - st::introCoverRight.width();
-		auto iconsSkip = st::introCoverIconsMinSkip +
-			(iconsMaxSkip - st::introCoverIconsMinSkip) * (width() - st::introStepWidth) /
-				(st::introCoverMaxWidth - st::introStepWidth);
+		auto iconsSkip = st::introCoverIconsMinSkip + (iconsMaxSkip - st::introCoverIconsMinSkip) * (width() - st::introStepWidth) / (st::introCoverMaxWidth - st::introStepWidth);
 		auto outside = iconsSkip + st::introCoverLeft.width() + st::introCoverRight.width() - width();
 		left = -outside / 2;
 		right = -outside - left;
@@ -418,31 +463,27 @@ void Step::paintCover(QPainter &p, int top) {
 		right = rightShown - st::introCoverRight.width();
 	}
 	st::introCoverLeft.paint(p, left, coverHeight - st::introCoverLeft.height(), width());
-	st::introCoverRight.paint(
-		p, width() - right - st::introCoverRight.width(), coverHeight - st::introCoverRight.height(), width());
+	st::introCoverRight.paint(p, width() - right - st::introCoverRight.width(), coverHeight - st::introCoverRight.height(), width());
 
 	auto planeTop = top + st::introCoverIconTop;
 	const auto ayuGramIcon = Ui::PixmapFromImage(AyuAssets::currentAppLogo());
-	QIcon(ayuGramIcon)
-		.paint(&p,
-			   QRect(width() / 2 - ayuGramIcon.width() / 2,
-					 planeTop - 16,
-					 ayuGramIcon.width(),
-					 st::introCoverIcon.height()));
+	QIcon(ayuGramIcon).paint(&p, QRect(width() / 2 - ayuGramIcon.width() / 2, planeTop - 16, ayuGramIcon.width(), st::introCoverIcon.height()));
 }
 
-int Step::contentLeft() const { return (width() - st::introNextButton.width) / 2; }
+int Step::contentLeft() const {
+	return (width() - st::introNextButton.width) / 2;
+}
 
 int Step::contentTop() const {
 	auto result = (height() - st::introHeight) / 2;
 	accumulate_max(result, st::introStepTopMin);
 	if (_hasCover) {
 		const auto currentHeightFull = result + st::introNextTop + st::introContentTopAdd;
-		auto added = 1. -
-			std::clamp(float64(currentHeightFull - st::windowMinHeight) /
-						   (st::introStepHeightFull - st::windowMinHeight),
-					   0.,
-					   1.);
+		auto added = 1. - std::clamp(
+			float64(currentHeightFull - st::windowMinHeight)
+				/ (st::introStepHeightFull - st::windowMinHeight),
+			0.,
+			1.);
 		result += qRound(added * st::introContentTopAdd);
 	}
 	return result;
@@ -453,15 +494,22 @@ void Step::setErrorCentered(bool centered) {
 	_error.destroy();
 }
 
-void Step::showError(rpl::producer<QString> text) { _errorText = std::move(text); }
+void Step::showError(rpl::producer<QString> text) {
+	_errorText = std::move(text);
+}
 
 void Step::refreshError(const QString &text) {
 	if (text.isEmpty()) {
 		if (_error) _error->hide(anim::type::normal);
 	} else {
 		if (!_error) {
-			_error.create(this,
-						  object_ptr<Ui::FlatLabel>(this, _errorCentered ? st::introErrorCentered : st::introError));
+			_error.create(
+				this,
+				object_ptr<Ui::FlatLabel>(
+					this,
+					_errorCentered
+						? st::introErrorCentered
+						: st::introError));
 			_error->hide(anim::type::instant);
 		}
 		_error->entity()->setText(text);
@@ -488,12 +536,16 @@ Step::CoverAnimation Step::prepareCoverAnimation(Step *after) {
 	Ui::SendPendingMoveResizeEvents(this);
 
 	auto result = CoverAnimation();
-	result.title = Ui::FlatLabel::CrossFade(after->_title, _title, st::introBg);
-	result.description = Ui::FlatLabel::CrossFade(after->_description->entity(),
-												  _description->entity(),
-												  st::introBg,
-												  after->_description->pos(),
-												  _description->pos());
+	result.title = Ui::FlatLabel::CrossFade(
+		after->_title,
+		_title,
+		st::introBg);
+	result.description = Ui::FlatLabel::CrossFade(
+		after->_description->entity(),
+		_description->entity(),
+		st::introBg,
+		after->_description->pos(),
+		_description->pos());
 	result.contentSnapshotWas = after->prepareContentSnapshot();
 	result.contentSnapshotNow = prepareContentSnapshot();
 	return result;
@@ -508,7 +560,9 @@ QPixmap Step::prepareContentSnapshot() {
 QPixmap Step::prepareSlideAnimation() {
 	auto grabLeft = (width() - st::introStepWidth) / 2;
 	auto grabTop = contentTop();
-	return Ui::GrabWidget(this, QRect(grabLeft, grabTop, st::introStepWidth, st::introStepHeight));
+	return Ui::GrabWidget(
+		this,
+		QRect(grabLeft, grabTop, st::introStepWidth, st::introStepHeight));
 }
 
 void Step::showAnimated(Animate animate) {
@@ -518,25 +572,37 @@ void Step::showAnimated(Animate animate) {
 	if (_slideAnimation) {
 		auto slideLeft = (animate == Animate::Back);
 		_slideAnimation->start(
-			slideLeft, [=] { update(0, contentTop(), width(), st::introStepHeight); }, st::introSlideDuration);
+			slideLeft,
+			[=] { update(0, contentTop(), width(), st::introStepHeight); },
+			st::introSlideDuration);
 	} else {
 		_a_show.start([this] { update(); }, 0., 1., st::introCoverDuration);
 	}
 }
 
-void Step::setShowAnimationClipping(QRect clipping) { _coverAnimation.clipping = clipping; }
+void Step::setShowAnimationClipping(QRect clipping) {
+	_coverAnimation.clipping = clipping;
+}
 
-void Step::setGoCallback(Fn<void(Step *step, StackAction action, Animate animate)> callback) {
+void Step::setGoCallback(
+		Fn<void(Step *step, StackAction action, Animate animate)> callback) {
 	_goCallback = std::move(callback);
 }
 
-void Step::setShowResetCallback(Fn<void()> callback) { _showResetCallback = std::move(callback); }
+void Step::setShowResetCallback(Fn<void()> callback) {
+	_showResetCallback = std::move(callback);
+}
 
-void Step::setShowTermsCallback(Fn<void()> callback) { _showTermsCallback = std::move(callback); }
+void Step::setShowTermsCallback(Fn<void()> callback) {
+	_showTermsCallback = std::move(callback);
+}
 
-void Step::setCancelNearestDcCallback(Fn<void()> callback) { _cancelNearestDcCallback = std::move(callback); }
+void Step::setCancelNearestDcCallback(Fn<void()> callback) {
+	_cancelNearestDcCallback = std::move(callback);
+}
 
-void Step::setAcceptTermsCallback(Fn<void(Fn<void()> callback)> callback) {
+void Step::setAcceptTermsCallback(
+		Fn<void(Fn<void()> callback)> callback) {
 	_acceptTermsCallback = std::move(callback);
 }
 
@@ -545,11 +611,18 @@ void Step::showFast() {
 	showFinished();
 }
 
-bool Step::animating() const { return (_slideAnimation && _slideAnimation->animating()) || _a_show.animating(); }
+bool Step::animating() const {
+	return (_slideAnimation && _slideAnimation->animating())
+		|| _a_show.animating();
+}
 
-bool Step::hasCover() const { return _hasCover; }
+bool Step::hasCover() const {
+	return _hasCover;
+}
 
-bool Step::hasBack() const { return false; }
+bool Step::hasBack() const {
+	return false;
+}
 
 void Step::activate() {
 	_title->show();
@@ -559,9 +632,12 @@ void Step::activate() {
 	}
 }
 
-void Step::cancelled() {}
+void Step::cancelled() {
+}
 
-void Step::finished() { hide(); }
+void Step::finished() {
+	hide();
+}
 
 } // namespace details
 } // namespace Intro

@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -12,7 +12,7 @@
 
 constexpr auto kMaxChannelId = -1000000000000;
 
-QString IDString(not_null<PeerData *> peer) {
+QString IDString(not_null<PeerData*> peer) {
 	auto resultId = QString::number(getBareID(peer));
 
 	const auto settings = &AyuSettings::getInstance();
@@ -33,7 +33,7 @@ QString IDString(MsgId topic_root_id) {
 	return resultId;
 }
 
-rpl::producer<TextWithEntities> IDValue(not_null<PeerData *> peer) {
+rpl::producer<TextWithEntities> IDValue(not_null<PeerData*> peer) {
 	return rpl::single(IDString(peer)) | Ui::Text::ToWithEntities();
 }
 

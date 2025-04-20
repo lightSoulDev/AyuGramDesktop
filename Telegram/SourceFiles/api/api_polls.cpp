@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h" // ShouldSendSilent
 #include "main/main_session.h"
 
-// ViGram includes
+// AyuGram includes
 #include "ayu/ayu_settings.h"
 #include "ayu/utils/telegram_helpers.h"
 
@@ -29,18 +29,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
-[[nodiscard]] TimeId UnixtimeFromMsgId(mtpMsgId msgId) { return TimeId(msgId >> 32); }
+[[nodiscard]] TimeId UnixtimeFromMsgId(mtpMsgId msgId) {
+	return TimeId(msgId >> 32);
+}
 
 } // namespace
 
-Polls::Polls(not_null<ApiWrap *> api) : _session(&api->session()), _api(&api->instance()) {}
+Polls::Polls(not_null<ApiWrap*> api)
+: _session(&api->session())
+, _api(&api->instance()) {
+}
 
-void Polls::create(const PollData &data, SendAction action, Fn<void()> done, Fn<void()> fail) {
+void Polls::create(
+		const PollData &data,
+		SendAction action,
+		Fn<void()> done,
+		Fn<void()> fail) {
 	_session->api().sendAction(action);
 
 	const auto history = action.history;
 	const auto peer = history->peer;
-	const auto topicRootId = action.replyTo.messageId ? action.replyTo.topicRootId : 0;
+	const auto topicRootId = action.replyTo.messageId
+		? action.replyTo.topicRootId
+		: 0;
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (action.replyTo) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
@@ -53,7 +64,9 @@ void Polls::create(const PollData &data, SendAction action, Fn<void()> done, Fn<
 		history->startSavingCloudDraft(topicRootId);
 	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
-	const auto starsPaid = std::min(peer->starsPerMessageChecked(), action.options.starsApproved);
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		action.options.starsApproved);
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
@@ -93,27 +106,32 @@ void Polls::create(const PollData &data, SendAction action, Fn<void()> done, Fn<
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty()),
 			Data::ShortcutIdToMTP(_session, action.options.shortcutId),
 			MTP_long(action.options.effectId),
-			MTP_long(starsPaid)),
-		[=](const MTPUpdates &result, const MTP::Response &response)
-		{
-			if (clearCloudDraft) {
-				history->finishSavingCloudDraft(topicRootId, UnixtimeFromMsgId(response.outerMsgId));
-			}
-			_session->changes().historyUpdated(history,
-											   (action.options.scheduled ? Data::HistoryUpdate::Flag::ScheduledSent
-																		 : Data::HistoryUpdate::Flag::MessageSent));
-			done();
-		},
-		[=](const MTP::Error &error, const MTP::Response &response)
-		{
-			if (clearCloudDraft) {
-				history->finishSavingCloudDraft(topicRootId, UnixtimeFromMsgId(response.outerMsgId));
-			}
-			fail();
-		});
+			MTP_long(starsPaid)
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraft(
+				topicRootId,
+				UnixtimeFromMsgId(response.outerMsgId));
+		}
+		_session->changes().historyUpdated(
+			history,
+			(action.options.scheduled
+				? Data::HistoryUpdate::Flag::ScheduledSent
+				: Data::HistoryUpdate::Flag::MessageSent));
+		done();
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraft(
+				topicRootId,
+				UnixtimeFromMsgId(response.outerMsgId));
+		}
+		fail();
+	});
 }
 
-void Polls::sendVotes(FullMsgId itemId, const std::vector<QByteArray> &options) {
+void Polls::sendVotes(
+		FullMsgId itemId,
+		const std::vector<QByteArray> &options) {
 	if (_pollVotesRequestIds.contains(itemId)) {
 		return;
 	}
@@ -125,8 +143,7 @@ void Polls::sendVotes(FullMsgId itemId, const std::vector<QByteArray> &options) 
 	}
 
 	const auto showSending = poll && !options.empty();
-	const auto hideSending = [=]
-	{
+	const auto hideSending = [=] {
 		if (showSending) {
 			if (const auto item = _session->data().message(itemId)) {
 				poll->sendingVotes.clear();
@@ -142,33 +159,31 @@ void Polls::sendVotes(FullMsgId itemId, const std::vector<QByteArray> &options) 
 	auto prepared = QVector<MTPbytes>();
 	prepared.reserve(options.size());
 	ranges::transform(
-		options, ranges::back_inserter(prepared), [](const QByteArray &option) { return MTP_bytes(option); });
-	const auto requestId =
-		_api.request(
-				MTPmessages_SendVote(item->history()->peer->input, MTP_int(item->id), MTP_vector<MTPbytes>(prepared)))
-			.done(
-				[=](const MTPUpdates &result)
-				{
-					_pollVotesRequestIds.erase(itemId);
-					hideSending();
-					_session->updates().applyUpdates(result);
+		options,
+		ranges::back_inserter(prepared),
+		[](const QByteArray &option) { return MTP_bytes(option); });
+	const auto requestId = _api.request(MTPmessages_SendVote(
+		item->history()->peer->input,
+		MTP_int(item->id),
+		MTP_vector<MTPbytes>(prepared)
+	)).done([=](const MTPUpdates &result) {
+		_pollVotesRequestIds.erase(itemId);
+		hideSending();
+		_session->updates().applyUpdates(result);
 
-					const auto settings = &AyuSettings::getInstance();
-					if (!settings->sendReadMessages && settings->markReadAfterAction && item) {
-						readHistory(item);
-					}
-				})
-			.fail(
-				[=]
-				{
-					_pollVotesRequestIds.erase(itemId);
-					hideSending();
-				})
-			.send();
+		const auto settings = &AyuSettings::getInstance();
+		if (!settings->sendReadMessages && settings->markReadAfterAction && item)
+		{
+			readHistory(item);
+		}
+	}).fail([=] {
+		_pollVotesRequestIds.erase(itemId);
+		hideSending();
+	}).send();
 	_pollVotesRequestIds.emplace(itemId, requestId);
 }
 
-void Polls::close(not_null<HistoryItem *> item) {
+void Polls::close(not_null<HistoryItem*> item) {
 	const auto itemId = item->fullId();
 	if (_pollCloseRequestIds.contains(itemId)) {
 		return;
@@ -178,41 +193,39 @@ void Polls::close(not_null<HistoryItem *> item) {
 	if (!poll) {
 		return;
 	}
-	const auto requestId = _api.request(MTPmessages_EditMessage(MTP_flags(MTPmessages_EditMessage::Flag::f_media),
-																item->history()->peer->input,
-																MTP_int(item->id),
-																MTPstring(),
-																PollDataToInputMedia(poll, true),
-																MTPReplyMarkup(),
-																MTPVector<MTPMessageEntity>(),
-																MTP_int(0), // schedule_date
-																MTPint() // quick_reply_shortcut_id
-																))
-							   .done(
-								   [=](const MTPUpdates &result)
-								   {
-									   _pollCloseRequestIds.erase(itemId);
-									   _session->updates().applyUpdates(result);
-								   })
-							   .fail([=] { _pollCloseRequestIds.erase(itemId); })
-							   .send();
+	const auto requestId = _api.request(MTPmessages_EditMessage(
+		MTP_flags(MTPmessages_EditMessage::Flag::f_media),
+		item->history()->peer->input,
+		MTP_int(item->id),
+		MTPstring(),
+		PollDataToInputMedia(poll, true),
+		MTPReplyMarkup(),
+		MTPVector<MTPMessageEntity>(),
+		MTP_int(0), // schedule_date
+		MTPint() // quick_reply_shortcut_id
+	)).done([=](const MTPUpdates &result) {
+		_pollCloseRequestIds.erase(itemId);
+		_session->updates().applyUpdates(result);
+	}).fail([=] {
+		_pollCloseRequestIds.erase(itemId);
+	}).send();
 	_pollCloseRequestIds.emplace(itemId, requestId);
 }
 
-void Polls::reloadResults(not_null<HistoryItem *> item) {
+void Polls::reloadResults(not_null<HistoryItem*> item) {
 	const auto itemId = item->fullId();
 	if (!item->isRegular() || _pollReloadRequestIds.contains(itemId)) {
 		return;
 	}
-	const auto requestId = _api.request(MTPmessages_GetPollResults(item->history()->peer->input, MTP_int(item->id)))
-							   .done(
-								   [=](const MTPUpdates &result)
-								   {
-									   _pollReloadRequestIds.erase(itemId);
-									   _session->updates().applyUpdates(result);
-								   })
-							   .fail([=] { _pollReloadRequestIds.erase(itemId); })
-							   .send();
+	const auto requestId = _api.request(MTPmessages_GetPollResults(
+		item->history()->peer->input,
+		MTP_int(item->id)
+	)).done([=](const MTPUpdates &result) {
+		_pollReloadRequestIds.erase(itemId);
+		_session->updates().applyUpdates(result);
+	}).fail([=] {
+		_pollReloadRequestIds.erase(itemId);
+	}).send();
 	_pollReloadRequestIds.emplace(itemId, requestId);
 }
 

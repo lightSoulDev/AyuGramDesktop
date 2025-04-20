@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -22,9 +22,13 @@ void processIcon(QString shortcut, QString iconPath) {
 	IShellLink *pShellLink = NULL;
 	IPersistFile *pPersistFile = NULL;
 
-	HRESULT hr = CoCreateInstance(CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, IID_IShellLink, (void **) &pShellLink);
+	HRESULT hr = CoCreateInstance(CLSID_ShellLink,
+								  NULL,
+								  CLSCTX_INPROC_SERVER,
+								  IID_IShellLink,
+								  (void**) &pShellLink);
 	if (SUCCEEDED(hr)) {
-		hr = pShellLink->QueryInterface(IID_IPersistFile, (void **) &pPersistFile);
+		hr = pShellLink->QueryInterface(IID_IPersistFile, (void**) &pPersistFile);
 		if (SUCCEEDED(hr)) {
 			WCHAR wszShortcutPath[MAX_PATH];
 			shortcut.toWCharArray(wszShortcutPath);
@@ -43,9 +47,9 @@ void processIcon(QString shortcut, QString iconPath) {
 }
 
 void processLegacy(const QString &appdata, const QString &iconPath) {
-	auto shortcut = appdata + "/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/ViGram Desktop.lnk";
+	auto shortcut = appdata + "/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/AyuGram Desktop.lnk";
 	if (!QFile::exists(shortcut)) {
-		shortcut = appdata + "/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/ViGram.lnk";
+		shortcut = appdata + "/Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar/AyuGram.lnk";
 	}
 	if (!QFile::exists(shortcut)) {
 		return;
@@ -58,7 +62,10 @@ void processNewPinned(const QString &iconPath) {
 	if (!SUCCEEDED(CoInitialize(0))) {
 		return;
 	}
-	const auto coGuard = gsl::finally([] { CoUninitialize(); });
+	const auto coGuard = gsl::finally([]
+	{
+		CoUninitialize();
+	});
 
 	const auto path = Platform::AppUserModelId::PinnedIconsPath();
 	const auto native = QDir::toNativeSeparators(path).toStdWString();
@@ -69,8 +76,13 @@ void processNewPinned(const QString &iconPath) {
 	}
 
 	WIN32_FIND_DATA findData;
-	HANDLE findHandle =
-		FindFirstFileEx((native + L"*").c_str(), FindExInfoStandard, &findData, FindExSearchNameMatch, 0, 0);
+	HANDLE findHandle = FindFirstFileEx(
+		(native + L"*").c_str(),
+		FindExInfoStandard,
+		&findData,
+		FindExSearchNameMatch,
+		0,
+		0);
 	if (findHandle == INVALID_HANDLE_VALUE) {
 		return;
 	}
@@ -87,7 +99,8 @@ void processNewPinned(const QString &iconPath) {
 			continue; // file does not exist
 		}
 
-		auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(CLSID_ShellLink);
+		auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
+			CLSID_ShellLink);
 		if (!shellLink) {
 			continue;
 		}
@@ -126,7 +139,7 @@ void processNewShortcuts(const QString &iconPath) {
 		return;
 	}
 
-	const auto shortcut = path + u"ViGram Desktop/ViGram.lnk"_q;
+	const auto shortcut = path + u"AyuGram Desktop/AyuGram.lnk"_q;
 	const auto native = QDir::toNativeSeparators(path).toStdWString();
 
 	DWORD attributes = GetFileAttributes(native.c_str());
@@ -140,7 +153,7 @@ void processNewShortcuts(const QString &iconPath) {
 
 void reloadAppIconFromTaskBar() {
 	QString appdata = QDir::fromNativeSeparators(qgetenv("APPDATA"));
-	QString iconPath = appdata + "/ViGram.ico";
+	QString iconPath = appdata + "/AyuGram.ico";
 
 	processNewPinned(iconPath);
 	processNewShortcuts(iconPath);

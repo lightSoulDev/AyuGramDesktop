@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -20,4 +20,4 @@ void addDeletedMessage(const DeletedMessage &message);
 std::vector<DeletedMessage> getDeletedMessages(ID userId, ID dialogId, ID topicId, ID minId, ID maxId, int totalLimit);
 bool hasDeletedMessages(ID userId, ID dialogId, ID topicId);
 
-} // namespace AyuDatabase
+}

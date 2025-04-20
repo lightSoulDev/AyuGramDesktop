@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -29,12 +29,18 @@
 
 namespace MessageHistory {
 
-OwnedItem::OwnedItem(std::nullptr_t) {}
+OwnedItem::OwnedItem(std::nullptr_t) {
+}
 
-OwnedItem::OwnedItem(not_null<HistoryView::ElementDelegate *> delegate, not_null<HistoryItem *> data)
-	: _data(data), _view(_data->createView(delegate)) {}
+OwnedItem::OwnedItem(
+	not_null<HistoryView::ElementDelegate*> delegate,
+	not_null<HistoryItem*> data)
+	: _data(data), _view(_data->createView(delegate)) {
+}
 
-OwnedItem::OwnedItem(OwnedItem &&other) : _data(base::take(other._data)), _view(base::take(other._view)) {}
+OwnedItem::OwnedItem(OwnedItem &&other)
+	: _data(base::take(other._data)), _view(base::take(other._view)) {
+}
 
 OwnedItem &OwnedItem::operator=(OwnedItem &&other) {
 	_data = base::take(other._data);
@@ -49,24 +55,35 @@ OwnedItem::~OwnedItem() {
 	}
 }
 
-void OwnedItem::refreshView(not_null<HistoryView::ElementDelegate *> delegate) { _view = _data->createView(delegate); }
+void OwnedItem::refreshView(
+	not_null<HistoryView::ElementDelegate*> delegate) {
+	_view = _data->createView(delegate);
+}
 
-void OwnedItem::clearView() { _view = nullptr; }
+void OwnedItem::clearView() {
+	_view = nullptr;
+}
 
-void GenerateItems(not_null<HistoryView::ElementDelegate *> delegate,
-				   not_null<History *> history,
-				   AyuMessageBase message,
-				   Fn<void(OwnedItem item, TimeId sentDate, MsgId)> callback) {
+void GenerateItems(
+	not_null<HistoryView::ElementDelegate*> delegate,
+	not_null<History*> history,
+	AyuMessageBase message,
+	Fn<void(OwnedItem item, TimeId sentDate, MsgId)> callback) {
 	PeerData *from = history->owner().userLoaded(message.fromId);
 	if (!from) {
 		from = history->owner().channelLoaded(message.fromId);
 	}
 	if (!from) {
-		from = reinterpret_cast<PeerData *>(history->owner().chatLoaded(message.fromId));
+		from = reinterpret_cast<PeerData*>(history->owner().chatLoaded(message.fromId));
 	}
 	const auto date = message.entityCreateDate;
-	const auto addPart = [&](not_null<HistoryItem *> item, TimeId sentDate = 0, MsgId realId = MsgId())
-	{ return callback(OwnedItem(delegate, item), sentDate, realId); };
+	const auto addPart = [&](
+		not_null<HistoryItem*> item,
+		TimeId sentDate = 0,
+		MsgId realId = MsgId())
+	{
+		return callback(OwnedItem(delegate, item), sentDate, realId);
+	};
 
 	const auto makeSimpleTextMessage = [&](TextWithEntities &&text)
 	{
@@ -80,21 +97,25 @@ void GenerateItems(not_null<HistoryView::ElementDelegate *> delegate,
 			flags |= MessageFlag::HasPostAuthor;
 		}
 
-		return history->makeMessage(
-			{
-				.id = history->nextNonHistoryEntryId(),
-				.flags = flags,
-				.from = from ? from->id : 0,
-				.date = date,
-				.postAuthor = !message.postAuthor.empty() ? QString::fromStdString(message.postAuthor)
-					: from								  ? QString()
-														  : QString("unknown user: %1").arg(message.fromId),
-			},
-			std::move(text),
-			MTP_messageMediaEmpty());
+		return history->makeMessage({
+										.id = history->nextNonHistoryEntryId(),
+										.flags = flags,
+										.from = from ? from->id : 0,
+										.date = date,
+										.postAuthor = !message.postAuthor.empty()
+														  ? QString::fromStdString(message.postAuthor)
+														  : from
+																? QString()
+																: QString("unknown user: %1").arg(message.fromId),
+									},
+									std::move(text),
+									MTP_messageMediaEmpty());
 	};
 
-	const auto addSimpleTextMessage = [&](TextWithEntities &&text) { addPart(makeSimpleTextMessage(std::move(text))); };
+	const auto addSimpleTextMessage = [&](TextWithEntities &&text)
+	{
+		addPart(makeSimpleTextMessage(std::move(text)));
+	};
 
 	const auto text = QString::fromStdString(message.text);
 	addSimpleTextMessage(Ui::Text::WithEntities(text));

@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -39,7 +39,7 @@ constexpr auto kMessageFlagHasTTL = 0x02000000;
 constexpr auto kMessageFlagInvertMedia = 0x08000000;
 constexpr auto kMessageFlagHasSavedPeer = 0x10000000;
 
-std::pair<std::string, std::vector<char>> serializeTextWithEntities(not_null<HistoryItem *> item) {
+std::pair<std::string, std::vector<char>> serializeTextWithEntities(not_null<HistoryItem*> item) {
 	if (item->emptyText()) {
 		return std::make_pair("", std::vector<char>());
 	}
@@ -50,10 +50,12 @@ std::pair<std::string, std::vector<char>> serializeTextWithEntities(not_null<His
 	return std::make_pair(textWithEntities.text.toStdString(), entities);
 }
 
-int mapItemFlagsToMTPFlags(not_null<HistoryItem *> item) {
+int mapItemFlagsToMTPFlags(not_null<HistoryItem*> item) {
 	int flags = 0;
 
-	const auto thread = item->topic() ? reinterpret_cast<Data::Thread *>(item->topic()) : item->history();
+	const auto thread = item->topic()
+							? reinterpret_cast<Data::Thread*>(item->topic())
+							: item->history();
 	if (item->unread(thread)) {
 		flags |= kMessageFlagUnread;
 	}
@@ -163,4 +165,4 @@ int mapItemFlagsToMTPFlags(not_null<HistoryItem *> item) {
 	return flags;
 }
 
-} // namespace AyuMapper
+}

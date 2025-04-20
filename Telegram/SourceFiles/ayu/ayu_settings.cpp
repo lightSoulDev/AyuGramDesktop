@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -8,8 +8,8 @@
 
 #include "ayu/ui/ayu_logo.h"
 
-#include "core/application.h"
 #include "lang_auto.h"
+#include "core/application.h"
 
 #include "rpl/lifetime.h"
 #include "rpl/producer.h"
@@ -47,8 +47,12 @@ rpl::event_stream<> historyUpdateReactive;
 rpl::lifetime lifetime = rpl::lifetime();
 
 bool ghostModeEnabled_util(const AyuGramSettings &settingsUtil) {
-	return !settingsUtil.sendReadMessages && !settingsUtil.sendReadStories && !settingsUtil.sendOnlinePackets &&
-		!settingsUtil.sendUploadProgress && settingsUtil.sendOfflinePacketAfterOnline;
+	return
+		!settingsUtil.sendReadMessages
+		&& !settingsUtil.sendReadStories
+		&& !settingsUtil.sendOnlinePackets
+		&& !settingsUtil.sendUploadProgress
+		&& settingsUtil.sendOfflinePacketAfterOnline;
 }
 
 void initialize() {
@@ -58,21 +62,69 @@ void initialize() {
 
 	settings = AyuGramSettings();
 
-	sendReadMessagesReactive.value() | rpl::filter([=](bool val) { return (val != settings->sendReadMessages); }) |
-		start_with_next([=](bool val) { ghostModeEnabled = ghostModeEnabled_util(settings.value()); }, lifetime);
+	sendReadMessagesReactive.value() | rpl::filter(
+		[=](bool val)
+		{
+			return (val != settings->sendReadMessages);
+		}) | start_with_next(
+		[=](bool val)
+		{
+			ghostModeEnabled =
+				ghostModeEnabled_util(settings.value());
+		},
+		lifetime);
 	// ..
-	sendReadStoriesReactive.value() | rpl::filter([=](bool val) { return (val != settings->sendReadStories); }) |
-		start_with_next([=](bool val) { ghostModeEnabled = ghostModeEnabled_util(settings.value()); }, lifetime);
+	sendReadStoriesReactive.value() | rpl::filter(
+		[=](bool val)
+		{
+			return (val != settings->sendReadStories);
+		}) | start_with_next(
+		[=](bool val)
+		{
+			ghostModeEnabled =
+				ghostModeEnabled_util(settings.value());
+		},
+		lifetime);
 	// ..
-	sendOnlinePacketsReactive.value() | rpl::filter([=](bool val) { return (val != settings->sendOnlinePackets); }) |
-		start_with_next([=](bool val) { ghostModeEnabled = ghostModeEnabled_util(settings.value()); }, lifetime);
+	sendOnlinePacketsReactive.value() | rpl::filter(
+		[=](bool val)
+		{
+			return (val != settings->sendOnlinePackets);
+		}) | start_with_next(
+		[=](bool val)
+		{
+			ghostModeEnabled =
+				ghostModeEnabled_util(settings
+					.value());
+		},
+		lifetime);
 	// ..
-	sendUploadProgressReactive.value() | rpl::filter([=](bool val) { return (val != settings->sendUploadProgress); }) |
-		start_with_next([=](bool val) { ghostModeEnabled = ghostModeEnabled_util(settings.value()); }, lifetime);
+	sendUploadProgressReactive.value() | rpl::filter(
+		[=](bool val)
+		{
+			return (val != settings->sendUploadProgress);
+		}) | start_with_next(
+		[=](bool val)
+		{
+			ghostModeEnabled =
+				ghostModeEnabled_util(settings
+					.value());
+		},
+		lifetime);
 	// ..
-	sendOfflinePacketAfterOnlineReactive.value() |
-		rpl::filter([=](bool val) { return (val != settings->sendOfflinePacketAfterOnline); }) |
-		start_with_next([=](bool val) { ghostModeEnabled = ghostModeEnabled_util(settings.value()); }, lifetime);
+	sendOfflinePacketAfterOnlineReactive.value() | rpl::filter(
+		[=](bool val)
+		{
+			return (val
+				!= settings->sendOfflinePacketAfterOnline);
+		}) | start_with_next(
+		[=](bool val)
+		{
+			ghostModeEnabled =
+				ghostModeEnabled_util(
+					settings.value());
+		},
+		lifetime);
 }
 
 void postinitialize() {
@@ -186,7 +238,7 @@ AyuGramSettings::AyuGramSettings() {
 #else
 		AyuAssets::DEFAULT_ICON
 #endif
-		;
+	;
 	simpleQuotesAndReplies = true;
 	replaceBottomInfoWithIcons = true;
 	deletedMark = "🧹";
@@ -227,17 +279,17 @@ AyuGramSettings::AyuGramSettings() {
 	hideAllChatsFolder = false;
 
 	/*
-	 * channelBottomButton = 0 means "Hide"
-	 * channelBottomButton = 1 means "Mute"/"Unmute"
-	 * channelBottomButton = 2 means "Discuss" + fallback to "Mute"/"Unmute"
-	 */
+		 * channelBottomButton = 0 means "Hide"
+		 * channelBottomButton = 1 means "Mute"/"Unmute"
+		 * channelBottomButton = 2 means "Discuss" + fallback to "Mute"/"Unmute"
+	*/
 	channelBottomButton = 2;
 
 	/*
-	 * showPeerId = 0 means no ID shown
-	 * showPeerId = 1 means ID shown as for Telegram API devs
-	 * showPeerId = 2 means ID shown as for Bot API devs (-100)
-	 */
+		 * showPeerId = 0 means no ID shown
+		 * showPeerId = 1 means ID shown as for Telegram API devs
+		 * showPeerId = 2 means ID shown as for Bot API devs (-100)
+	*/
 	showPeerId = 2;
 	showMessageSeconds = false;
 	showMessageShot = true;
@@ -287,50 +339,90 @@ void AyuGramSettings::set_ghostModeEnabled(bool val) {
 	}
 }
 
-void AyuGramSettings::set_markReadAfterAction(bool val) { markReadAfterAction = val; }
+void AyuGramSettings::set_markReadAfterAction(bool val) {
+	markReadAfterAction = val;
+}
 
-void AyuGramSettings::set_useScheduledMessages(bool val) { useScheduledMessages = val; }
+void AyuGramSettings::set_useScheduledMessages(bool val) {
+	useScheduledMessages = val;
+}
 
-void AyuGramSettings::set_sendWithoutSound(bool val) { sendWithoutSound = val; }
+void AyuGramSettings::set_sendWithoutSound(bool val) {
+	sendWithoutSound = val;
+}
 
-void AyuGramSettings::set_saveDeletedMessages(bool val) { saveDeletedMessages = val; }
+void AyuGramSettings::set_saveDeletedMessages(bool val) {
+	saveDeletedMessages = val;
+}
 
-void AyuGramSettings::set_saveMessagesHistory(bool val) { saveMessagesHistory = val; }
+void AyuGramSettings::set_saveMessagesHistory(bool val) {
+	saveMessagesHistory = val;
+}
 
-void AyuGramSettings::set_saveForBots(bool val) { saveForBots = val; }
+void AyuGramSettings::set_saveForBots(bool val) {
+	saveForBots = val;
+}
 
 void AyuGramSettings::set_hideFromBlocked(bool val) {
 	hideFromBlocked = val;
 	hideFromBlockedReactive = val;
 }
 
-void AyuGramSettings::set_disableAds(bool val) { disableAds = val; }
+void AyuGramSettings::set_disableAds(bool val) {
+	disableAds = val;
+}
 
-void AyuGramSettings::set_disableStories(bool val) { disableStories = val; }
+void AyuGramSettings::set_disableStories(bool val) {
+	disableStories = val;
+}
 
-void AyuGramSettings::set_disableCustomBackgrounds(bool val) { disableCustomBackgrounds = val; }
+void AyuGramSettings::set_disableCustomBackgrounds(bool val) {
+	disableCustomBackgrounds = val;
+}
 
-void AyuGramSettings::set_collapseSimilarChannels(bool val) { collapseSimilarChannels = val; }
+void AyuGramSettings::set_collapseSimilarChannels(bool val) {
+	collapseSimilarChannels = val;
+}
 
-void AyuGramSettings::set_hideSimilarChannels(bool val) { hideSimilarChannels = val; }
+void AyuGramSettings::set_hideSimilarChannels(bool val) {
+	hideSimilarChannels = val;
+}
 
-void AyuGramSettings::set_wideMultiplier(double val) { wideMultiplier = val; }
+void AyuGramSettings::set_wideMultiplier(double val) {
+	wideMultiplier = val;
+}
 
-void AyuGramSettings::set_spoofWebviewAsAndroid(bool val) { spoofWebviewAsAndroid = val; }
+void AyuGramSettings::set_spoofWebviewAsAndroid(bool val) {
+	spoofWebviewAsAndroid = val;
+}
 
-void AyuGramSettings::set_increaseWebviewHeight(bool val) { increaseWebviewHeight = val; }
+void AyuGramSettings::set_increaseWebviewHeight(bool val) {
+	increaseWebviewHeight = val;
+}
 
-void AyuGramSettings::set_increaseWebviewWidth(bool val) { increaseWebviewWidth = val; }
+void AyuGramSettings::set_increaseWebviewWidth(bool val) {
+	increaseWebviewWidth = val;
+}
 
-void AyuGramSettings::set_disableNotificationsDelay(bool val) { disableNotificationsDelay = val; }
+void AyuGramSettings::set_disableNotificationsDelay(bool val) {
+	disableNotificationsDelay = val;
+}
 
-void AyuGramSettings::set_localPremium(bool val) { localPremium = val; }
+void AyuGramSettings::set_localPremium(bool val) {
+	localPremium = val;
+}
 
-void AyuGramSettings::set_appIcon(QString val) { appIcon = std::move(val); }
+void AyuGramSettings::set_appIcon(QString val) {
+	appIcon = std::move(val);
+}
 
-void AyuGramSettings::set_simpleQuotesAndReplies(bool val) { simpleQuotesAndReplies = val; }
+void AyuGramSettings::set_simpleQuotesAndReplies(bool val) {
+	simpleQuotesAndReplies = val;
+}
 
-void AyuGramSettings::set_replaceBottomInfoWithIcons(bool val) { replaceBottomInfoWithIcons = val; }
+void AyuGramSettings::set_replaceBottomInfoWithIcons(bool val) {
+	replaceBottomInfoWithIcons = val;
+}
 
 void AyuGramSettings::set_deletedMark(QString val) {
 	deletedMark = std::move(val);
@@ -342,17 +434,29 @@ void AyuGramSettings::set_editedMark(QString val) {
 	editedMarkReactive = editedMark;
 }
 
-void AyuGramSettings::set_recentStickersCount(int val) { recentStickersCount = val; }
+void AyuGramSettings::set_recentStickersCount(int val) {
+	recentStickersCount = val;
+}
 
-void AyuGramSettings::set_showReactionsPanelInContextMenu(int val) { showReactionsPanelInContextMenu = val; }
+void AyuGramSettings::set_showReactionsPanelInContextMenu(int val) {
+	showReactionsPanelInContextMenu = val;
+}
 
-void AyuGramSettings::set_showViewsPanelInContextMenu(int val) { showViewsPanelInContextMenu = val; }
+void AyuGramSettings::set_showViewsPanelInContextMenu(int val) {
+	showViewsPanelInContextMenu = val;
+}
 
-void AyuGramSettings::set_showHideMessageInContextMenu(int val) { showHideMessageInContextMenu = val; }
+void AyuGramSettings::set_showHideMessageInContextMenu(int val) {
+	showHideMessageInContextMenu = val;
+}
 
-void AyuGramSettings::set_showUserMessagesInContextMenu(int val) { showUserMessagesInContextMenu = val; }
+void AyuGramSettings::set_showUserMessagesInContextMenu(int val) {
+	showUserMessagesInContextMenu = val;
+}
 
-void AyuGramSettings::set_showMessageDetailsInContextMenu(int val) { showMessageDetailsInContextMenu = val; }
+void AyuGramSettings::set_showMessageDetailsInContextMenu(int val) {
+	showMessageDetailsInContextMenu = val;
+}
 
 void AyuGramSettings::set_showAttachButtonInMessageField(bool val) {
 	showAttachButtonInMessageField = val;
@@ -389,62 +493,110 @@ void AyuGramSettings::set_showEmojiPopup(bool val) {
 	triggerHistoryUpdate();
 }
 
-void AyuGramSettings::set_showLReadToggleInDrawer(bool val) { showLReadToggleInDrawer = val; }
+void AyuGramSettings::set_showLReadToggleInDrawer(bool val) {
+	showLReadToggleInDrawer = val;
+}
 
-void AyuGramSettings::set_showSReadToggleInDrawer(bool val) { showSReadToggleInDrawer = val; }
+void AyuGramSettings::set_showSReadToggleInDrawer(bool val) {
+	showSReadToggleInDrawer = val;
+}
 
-void AyuGramSettings::set_showGhostToggleInDrawer(bool val) { showGhostToggleInDrawer = val; }
+void AyuGramSettings::set_showGhostToggleInDrawer(bool val) {
+	showGhostToggleInDrawer = val;
+}
 
-void AyuGramSettings::set_showStreamerToggleInDrawer(bool val) { showStreamerToggleInDrawer = val; }
+void AyuGramSettings::set_showStreamerToggleInDrawer(bool val) {
+	showStreamerToggleInDrawer = val;
+}
 
-void AyuGramSettings::set_showGhostToggleInTray(bool val) { showGhostToggleInTray = val; }
+void AyuGramSettings::set_showGhostToggleInTray(bool val) {
+	showGhostToggleInTray = val;
+}
 
-void AyuGramSettings::set_showStreamerToggleInTray(bool val) { showStreamerToggleInTray = val; }
+void AyuGramSettings::set_showStreamerToggleInTray(bool val) {
+	showStreamerToggleInTray = val;
+}
 
-void AyuGramSettings::set_monoFont(QString val) { monoFont = val; }
+void AyuGramSettings::set_monoFont(QString val) {
+	monoFont = val;
+}
 
 void AyuGramSettings::set_showPeerId(int val) {
 	showPeerId = val;
 	showPeerIdReactive = val;
 }
 
-void AyuGramSettings::set_hideNotificationCounters(bool val) { hideNotificationCounters = val; }
+void AyuGramSettings::set_hideNotificationCounters(bool val) {
+	hideNotificationCounters = val;
+}
 
-void AyuGramSettings::set_hideNotificationBadge(bool val) { hideNotificationBadge = val; }
+void AyuGramSettings::set_hideNotificationBadge(bool val) {
+	hideNotificationBadge = val;
+}
 
-void AyuGramSettings::set_hideAllChatsFolder(bool val) { hideAllChatsFolder = val; }
+void AyuGramSettings::set_hideAllChatsFolder(bool val) {
+	hideAllChatsFolder = val;
+}
 
-void AyuGramSettings::set_channelBottomButton(int val) { channelBottomButton = val; }
+void AyuGramSettings::set_channelBottomButton(int val) {
+	channelBottomButton = val;
+}
 
-void AyuGramSettings::set_showMessageSeconds(bool val) { showMessageSeconds = val; }
+void AyuGramSettings::set_showMessageSeconds(bool val) {
+	showMessageSeconds = val;
+}
 
-void AyuGramSettings::set_showMessageShot(bool val) { showMessageShot = val; }
+void AyuGramSettings::set_showMessageShot(bool val) {
+	showMessageShot = val;
+}
 
-void AyuGramSettings::set_stickerConfirmation(bool val) { stickerConfirmation = val; }
+void AyuGramSettings::set_stickerConfirmation(bool val) {
+	stickerConfirmation = val;
+}
 
-void AyuGramSettings::set_gifConfirmation(bool val) { gifConfirmation = val; }
+void AyuGramSettings::set_gifConfirmation(bool val) {
+	gifConfirmation = val;
+}
 
-void AyuGramSettings::set_voiceConfirmation(bool val) { voiceConfirmation = val; }
+void AyuGramSettings::set_voiceConfirmation(bool val) {
+	voiceConfirmation = val;
+}
 
 bool isUseScheduledMessages() {
 	const auto settings = &getInstance();
 	return isGhostModeActive() && settings->useScheduledMessages;
 }
 
-bool isGhostModeActive() { return ghostModeEnabled.current(); }
+bool isGhostModeActive() {
+	return ghostModeEnabled.current();
+}
 
-rpl::producer<QString> get_deletedMarkReactive() { return deletedMarkReactive.value(); }
+rpl::producer<QString> get_deletedMarkReactive() {
+	return deletedMarkReactive.value();
+}
 
-rpl::producer<QString> get_editedMarkReactive() { return editedMarkReactive.value(); }
+rpl::producer<QString> get_editedMarkReactive() {
+	return editedMarkReactive.value();
+}
 
-rpl::producer<int> get_showPeerIdReactive() { return showPeerIdReactive.value(); }
+rpl::producer<int> get_showPeerIdReactive() {
+	return showPeerIdReactive.value();
+}
 
-rpl::producer<bool> get_ghostModeEnabledReactive() { return ghostModeEnabled.value(); }
+rpl::producer<bool> get_ghostModeEnabledReactive() {
+	return ghostModeEnabled.value();
+}
 
-rpl::producer<bool> get_hideFromBlockedReactive() { return hideFromBlockedReactive.value(); }
+rpl::producer<bool> get_hideFromBlockedReactive() {
+	return hideFromBlockedReactive.value();
+}
 
-void triggerHistoryUpdate() { historyUpdateReactive.fire({}); }
+void triggerHistoryUpdate() {
+	historyUpdateReactive.fire({});
+}
 
-rpl::producer<> get_historyUpdateReactive() { return historyUpdateReactive.events(); }
+rpl::producer<> get_historyUpdateReactive() {
+	return historyUpdateReactive.events();
+}
 
-} // namespace AyuSettings
+}
