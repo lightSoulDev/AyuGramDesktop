@@ -283,18 +283,14 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 	auto delegate = std::make_unique<MessageShotDelegate>(
 		box,
 		st.get(),
-		[=]
-		{
-			box->update();
-		},
+		[=] { box->update(); },
 		messages.front()->history());
 
 	// remove deleted messages
 	messages.erase(
 		std::ranges::remove_if(
 			messages,
-			[=](const auto &message)
-			{
+			[=](const auto &message) {
 				return !message || !controller->session().data().message(message->fullId());
 			}).begin(),
 		messages.end()
@@ -310,8 +306,7 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 		createdViews.emplace(message, message->createView(delegate.get()));
 	}
 
-	auto getView = [=](not_null<HistoryItem*> msg)
-	{
+	auto getView = [=](not_null<HistoryItem*> msg) {
 		return createdViews.at(msg).get();
 	};
 
@@ -340,24 +335,26 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 		getView(messages[0])->setAttachToNext(false);
 	}
 
-	// calculate the size of the image
-	int width = st::msgMaxWidth + (st::boxPadding.left() + st::boxPadding.right());
-	int height = 0;
+	// === NEW: Compute scaling ===
+	int originalWidth = st::msgMaxWidth + (st::boxPadding.left() + st::boxPadding.right());
+	int originalHeight = 0;
 
-	for (int i = 0; i < messages.size(); i++) {
-		const auto &message = messages[i];
-		const auto view = getView(message);
-
-		view->itemDataChanged(); // refresh reactions
-		height += view->resizeGetHeight(width);
+	for (const auto &msg : messages) {
+		const auto view = getView(msg);
+		originalHeight += view->resizeGetHeight(originalWidth);
 	}
 
-	width *= style::DevicePixelRatio();
-	height *= style::DevicePixelRatio();
+	constexpr int maxSide = 512;
+	const float scaleFactor = (std::max(originalWidth, originalHeight) > maxSide)
+		? (float(maxSide) / std::max(originalWidth, originalHeight))
+		: 1.0f;
 
-	// create the image
+	const int width = int(originalWidth * scaleFactor);
+	const int height = int(originalHeight * scaleFactor);
+
+	// === Create the image ===
 	QImage image(width, height, QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(style::DevicePixelRatio());
+	image.setDevicePixelRatio(1.0); // we control the scaling
 	image.fill(Qt::transparent);
 
 	const auto viewport = QRect(0, 0, width, height);
@@ -366,55 +363,40 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 	base::flat_map<MsgId, Ui::PeerUserpicView> hiddenSenderUserpics;
 
 	Painter p(&image);
-
-	// draw the messages
 	int y = 0;
-	for (int i = 0; i < messages.size(); i++) {
-		const auto &message = messages[i];
-		const auto view = getView(message);
 
+	for (const auto &message : messages) {
+		const auto view = getView(message);
 		const auto displayUserpic = view->displayFromPhoto() || message->isPost();
 
-		const auto rect = QRect(0, y, width, view->height());
+		const int viewHeight = int(view->resizeGetHeight(originalWidth) * scaleFactor);
+		const auto rect = QRect(0, y, width, viewHeight);
 
 		auto context = controller->defaultChatTheme()->preparePaintContext(
-			st.get(),
-			viewport,
-			rect,
-			true);
+			st.get(), viewport, rect, true);
 
 		p.translate(0, y);
+		p.scale(scaleFactor, scaleFactor);
 		view->draw(p, context);
+		p.scale(1.0f / scaleFactor, 1.0f / scaleFactor);
 		p.translate(0, -y);
 
 		if (displayUserpic) {
-			const auto picX = st::msgMargin.left();
-			const auto picY = y + view->height() - st::msgPhotoSize;
+			const int picX = int(st::msgMargin.left() * scaleFactor);
+			const int picY = y + viewHeight - int(st::msgPhotoSize * scaleFactor);
+			const int size = int(st::msgPhotoSize * scaleFactor);
 
 			if (const auto from = message->displayFrom()) {
 				Dialogs::Ui::PaintUserpic(
-					p,
-					from,
-					nullptr,
-					userpics[from],
-					picX,
-					picY,
-					width,
-					st::msgPhotoSize,
-					context.paused);
+					p, from, nullptr, userpics[from], picX, picY, width, size, context.paused);
 			} else if (const auto info = message->displayHiddenSenderInfo()) {
 				if (info->customUserpic.empty()) {
-					info->emptyUserpic.paintCircle(
-						p,
-						picX,
-						picY,
-						width,
-						st::msgPhotoSize);
+					info->emptyUserpic.paintCircle(p, picX, picY, width, size);
 				}
 			}
 		}
 
-		y += view->height();
+		y += viewHeight;
 	}
 
 	takingShot = false;
@@ -424,8 +406,8 @@ QImage Make(not_null<QWidget*> box, const ShotConfig &config) {
 		return result;
 	}
 
-	auto newResult = QImage(result.size(), QImage::Format_ARGB32_Premultiplied);
-	newResult.setDevicePixelRatio(style::DevicePixelRatio());
+	QImage newResult(result.size(), QImage::Format_ARGB32_Premultiplied);
+	newResult.setDevicePixelRatio(1.0);
 	newResult.fill(makeDefaultBackgroundColor());
 
 	Painter painter(&newResult);
