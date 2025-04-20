@@ -7,16 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_stories.h"
 
-#include "base/unixtime.h"
 #include "apiwrap.h"
+#include "base/unixtime.h"
 #include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_folder.h"
 #include "data/data_photo.h"
-#include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
 
-// AyuGram includes
+// ViGram includes
 #include "ayu/ayu_settings.h"
 
 
@@ -51,34 +51,31 @@ constexpr auto kPollingViewsPerPage = Story::kRecentViewersMax;
 
 using UpdateFlag = StoryUpdate::Flag;
 
-[[nodiscard]] std::optional<StoryMedia> ParseMedia(
-		not_null<Session*> owner,
-		const MTPMessageMedia &media) {
-	return media.match([&](const MTPDmessageMediaPhoto &data)
-		-> std::optional<StoryMedia> {
-		if (const auto photo = data.vphoto()) {
-			const auto result = owner->processPhoto(*photo);
-			if (!result->isNull()) {
-				return StoryMedia{ result };
+[[nodiscard]] std::optional<StoryMedia> ParseMedia(not_null<Session *> owner, const MTPMessageMedia &media) {
+	return media.match(
+		[&](const MTPDmessageMediaPhoto &data) -> std::optional<StoryMedia>
+		{
+			if (const auto photo = data.vphoto()) {
+				const auto result = owner->processPhoto(*photo);
+				if (!result->isNull()) {
+					return StoryMedia{result};
+				}
 			}
-		}
-		return {};
-	}, [&](const MTPDmessageMediaDocument &data)
-		-> std::optional<StoryMedia> {
-		if (const auto document = data.vdocument()) {
-			const auto result = owner->processDocument(
-				*document,
-				data.valt_documents());
-			if (!result->isNull()
-				&& (result->isGifv() || result->isVideoFile())) {
-				result->setStoryMedia(true);
-				return StoryMedia{ result };
+			return {};
+		},
+		[&](const MTPDmessageMediaDocument &data) -> std::optional<StoryMedia>
+		{
+			if (const auto document = data.vdocument()) {
+				const auto result = owner->processDocument(*document, data.valt_documents());
+				if (!result->isNull() && (result->isGifv() || result->isVideoFile())) {
+					result->setStoryMedia(true);
+					return StoryMedia{result};
+				}
 			}
-		}
-		return {};
-	}, [&](const MTPDmessageMediaUnsupported &data) {
-		return std::make_optional(StoryMedia{ v::null });
-	}, [](const auto &) { return std::optional<StoryMedia>(); });
+			return {};
+		},
+		[&](const MTPDmessageMediaUnsupported &data) { return std::make_optional(StoryMedia{v::null}); },
+		[](const auto &) { return std::optional<StoryMedia>(); });
 }
 
 } // namespace
@@ -109,7 +106,7 @@ StoriesSourceInfo StoriesSource::info() const {
 }
 
 int StoriesSource::unreadCount() const {
-	const auto i = ids.lower_bound(StoryIdDates{ .id = readTill + 1 });
+	const auto i = ids.lower_bound(StoryIdDates{.id = readTill + 1});
 	return int(end(ids) - i);
 }
 
@@ -117,42 +114,43 @@ StoryIdDates StoriesSource::toOpen() const {
 	if (ids.empty()) {
 		return {};
 	}
-	const auto i = ids.lower_bound(StoryIdDates{ readTill + 1 });
+	const auto i = ids.lower_bound(StoryIdDates{readTill + 1});
 	return (i != end(ids)) ? *i : ids.front();
 }
 
-Stories::Stories(not_null<Session*> owner)
-: _owner(owner)
-, _expireTimer([=] { processExpired(); })
-, _markReadTimer([=] { sendMarkAsReadRequests(); })
-, _incrementViewsTimer([=] { sendIncrementViewsRequests(); })
-, _pollingTimer([=] { sendPollingRequests(); })
-, _pollingViewsTimer([=] { sendPollingViewsRequests(); }) {
-	crl::on_main(this, [=] {
-		session().changes().peerUpdates(
-			Data::PeerUpdate::Flag::Rights
-		) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-			const auto channel = update.peer->asChannel();
-			if (!channel) {
-				return;
-			} else if (!channel->canEditStories()) {
-				const auto peerId = channel->id;
-				const auto i = _peersWithDeletedStories.find(peerId);
-				if (i != end(_peersWithDeletedStories)) {
-					_peersWithDeletedStories.erase(i);
-					for (auto j = begin(_deleted); j != end(_deleted);) {
-						if (j->peer == peerId) {
-							j = _deleted.erase(j);
-						} else {
-							++j;
-						}
-					}
-				}
-			} else {
-				clearArchive(channel);
-			}
-		}, _lifetime);
-	});
+Stories::Stories(not_null<Session *> owner)
+	: _owner(owner), _expireTimer([=] { processExpired(); }), _markReadTimer([=] { sendMarkAsReadRequests(); }),
+	  _incrementViewsTimer([=] { sendIncrementViewsRequests(); }), _pollingTimer([=] { sendPollingRequests(); }),
+	  _pollingViewsTimer([=] { sendPollingViewsRequests(); }) {
+	crl::on_main(this,
+				 [=]
+				 {
+					 session().changes().peerUpdates(Data::PeerUpdate::Flag::Rights) |
+						 rpl::start_with_next(
+							 [=](const Data::PeerUpdate &update)
+							 {
+								 const auto channel = update.peer->asChannel();
+								 if (!channel) {
+									 return;
+								 } else if (!channel->canEditStories()) {
+									 const auto peerId = channel->id;
+									 const auto i = _peersWithDeletedStories.find(peerId);
+									 if (i != end(_peersWithDeletedStories)) {
+										 _peersWithDeletedStories.erase(i);
+										 for (auto j = begin(_deleted); j != end(_deleted);) {
+											 if (j->peer == peerId) {
+												 j = _deleted.erase(j);
+											 } else {
+												 ++j;
+											 }
+										 }
+									 }
+								 } else {
+									 clearArchive(channel);
+								 }
+							 },
+							 _lifetime);
+				 });
 }
 
 Stories::~Stories() {
@@ -160,13 +158,9 @@ Stories::~Stories() {
 	Expects(_pollingViews.empty());
 }
 
-Session &Stories::owner() const {
-	return *_owner;
-}
+Session &Stories::owner() const { return *_owner; }
 
-Main::Session &Stories::session() const {
-	return _owner->session();
-}
+Main::Session &Stories::session() const { return _owner->session(); }
 
 void Stories::apply(const MTPDupdateStory &data) {
 	const auto peerId = peerFromMTP(data.vpeer());
@@ -178,7 +172,7 @@ void Stories::apply(const MTPDupdateStory &data) {
 	}
 	const auto expired = (idDates.expires <= now);
 	if (expired) {
-		applyExpired({ peerId, idDates.id });
+		applyExpired({peerId, idDates.id});
 		return;
 	}
 	const auto i = _all.find(peerId);
@@ -197,12 +191,10 @@ void Stories::apply(const MTPDupdateStory &data) {
 	if (wasInfo == nowInfo) {
 		return;
 	}
-	const auto refreshInList = [&](StorySourcesList list) {
+	const auto refreshInList = [&](StorySourcesList list)
+	{
 		auto &sources = _sources[static_cast<int>(list)];
-		const auto i = ranges::find(
-			sources,
-			peerId,
-			&StoriesSourceInfo::id);
+		const auto i = ranges::find(sources, peerId, &StoriesSourceInfo::id);
 		if (i != end(sources)) {
 			*i = nowInfo;
 			sort(list);
@@ -217,9 +209,7 @@ void Stories::apply(const MTPDupdateStory &data) {
 	updatePeerStoriesState(peer);
 }
 
-void Stories::apply(const MTPDupdateReadStories &data) {
-	bumpReadTill(peerFromMTP(data.vpeer()), data.vmax_id().v);
-}
+void Stories::apply(const MTPDupdateReadStories &data) { bumpReadTill(peerFromMTP(data.vpeer()), data.vmax_id().v); }
 
 void Stories::apply(const MTPStoriesStealthMode &stealthMode) {
 	const auto &data = stealthMode.data();
@@ -229,7 +219,7 @@ void Stories::apply(const MTPStoriesStealthMode &stealthMode) {
 	};
 }
 
-void Stories::apply(not_null<PeerData*> peer, const MTPPeerStories *data) {
+void Stories::apply(not_null<PeerData *> peer, const MTPPeerStories *data) {
 	if (!data) {
 		applyDeletedFromSources(peer->id, StorySourcesList::NotHidden);
 		applyDeletedFromSources(peer->id, StorySourcesList::Hidden);
@@ -242,19 +232,12 @@ void Stories::apply(not_null<PeerData*> peer, const MTPPeerStories *data) {
 }
 
 Story *Stories::applySingle(PeerId peerId, const MTPstoryItem &story) {
-	const auto idDates = parseAndApply(
-		_owner->peer(peerId),
-		story,
-		base::unixtime::now());
-	const auto value = idDates
-		? lookup({ peerId, idDates.id })
-		: base::make_unexpected(NoStory::Deleted);
+	const auto idDates = parseAndApply(_owner->peer(peerId), story, base::unixtime::now());
+	const auto value = idDates ? lookup({peerId, idDates.id}) : base::make_unexpected(NoStory::Deleted);
 	return value ? value->get() : nullptr;
 }
 
-void Stories::requestPeerStories(
-		not_null<PeerData*> peer,
-		Fn<void()> done) {
+void Stories::requestPeerStories(not_null<PeerData *> peer, Fn<void()> done) {
 	const auto &[i, ok] = _requestingPeerStories.emplace(peer);
 	if (done) {
 		i->second.push_back(std::move(done));
@@ -262,38 +245,43 @@ void Stories::requestPeerStories(
 	if (!ok) {
 		return;
 	}
-	const auto finish = [=] {
+	const auto finish = [=]
+	{
 		if (const auto callbacks = _requestingPeerStories.take(peer)) {
 			for (const auto &callback : *callbacks) {
 				callback();
 			}
 		}
 	};
-	_owner->session().api().request(MTPstories_GetPeerStories(
-		peer->input
-	)).done([=](const MTPstories_PeerStories &result) {
-		const auto &data = result.data();
-		_owner->processUsers(data.vusers());
-		_owner->processChats(data.vchats());
-		parseAndApply(data.vstories());
-		finish();
-	}).fail([=] {
-		applyDeletedFromSources(peer->id, StorySourcesList::NotHidden);
-		applyDeletedFromSources(peer->id, StorySourcesList::Hidden);
-		finish();
-	}).send();
+	_owner->session()
+		.api()
+		.request(MTPstories_GetPeerStories(peer->input))
+		.done(
+			[=](const MTPstories_PeerStories &result)
+			{
+				const auto &data = result.data();
+				_owner->processUsers(data.vusers());
+				_owner->processChats(data.vchats());
+				parseAndApply(data.vstories());
+				finish();
+			})
+		.fail(
+			[=]
+			{
+				applyDeletedFromSources(peer->id, StorySourcesList::NotHidden);
+				applyDeletedFromSources(peer->id, StorySourcesList::Hidden);
+				finish();
+			})
+		.send();
 }
 
 void Stories::registerExpiring(TimeId expires, FullStoryId id) {
-	for (auto i = _expiring.findFirst(expires)
-		; (i != end(_expiring)) && (i->first == expires)
-		; ++i) {
+	for (auto i = _expiring.findFirst(expires); (i != end(_expiring)) && (i->first == expires); ++i) {
 		if (i->second == id) {
 			return;
 		}
 	}
-	const auto reschedule = _expiring.empty()
-		|| (_expiring.front().first > expires);
+	const auto reschedule = _expiring.empty() || (_expiring.front().first > expires);
 	_expiring.emplace(expires, id);
 	if (reschedule) {
 		scheduleExpireTimer();
@@ -305,22 +293,22 @@ void Stories::scheduleExpireTimer() {
 		return;
 	}
 	_expireSchedulePosted = true;
-	crl::on_main(this, [=] {
-		if (!_expireSchedulePosted) {
-			return;
-		}
-		_expireSchedulePosted = false;
-		if (_expiring.empty()) {
-			_expireTimer.cancel();
-		} else {
-			const auto nearest = _expiring.front().first;
-			const auto now = base::unixtime::now();
-			const auto delay = (nearest > now)
-				? std::min(nearest - now, 86'400)
-				: 0;
-			_expireTimer.callOnce(delay * crl::time(1000));
-		}
-	});
+	crl::on_main(this,
+				 [=]
+				 {
+					 if (!_expireSchedulePosted) {
+						 return;
+					 }
+					 _expireSchedulePosted = false;
+					 if (_expiring.empty()) {
+						 _expireTimer.cancel();
+					 } else {
+						 const auto nearest = _expiring.front().first;
+						 const auto now = base::unixtime::now();
+						 const auto delay = (nearest > now) ? std::min(nearest - now, 86'400) : 0;
+						 _expireTimer.callOnce(delay * crl::time(1000));
+					 }
+				 });
 }
 
 void Stories::processExpired() {
@@ -339,19 +327,17 @@ void Stories::processExpired() {
 	}
 }
 
-Stories::Set *Stories::lookupArchive(not_null<PeerData*> peer) {
+Stories::Set *Stories::lookupArchive(not_null<PeerData *> peer) {
 	const auto peerId = peer->id;
 	if (hasArchive(peer)) {
 		const auto i = _archive.find(peerId);
-		return (i != end(_archive))
-			? &i->second
-			: &_archive.emplace(peerId, Set()).first->second;
+		return (i != end(_archive)) ? &i->second : &_archive.emplace(peerId, Set()).first->second;
 	}
 	clearArchive(peer);
 	return nullptr;
 }
 
-void Stories::clearArchive(not_null<PeerData*> peer) {
+void Stories::clearArchive(not_null<PeerData *> peer) {
 	const auto peerId = peer->id;
 	const auto i = _archive.find(peerId);
 	if (i == end(_archive)) {
@@ -360,7 +346,7 @@ void Stories::clearArchive(not_null<PeerData*> peer) {
 	auto archive = base::take(i->second);
 	_archive.erase(i);
 	for (const auto &id : archive.ids.list) {
-		if (const auto story = lookup({ peerId, id })) {
+		if (const auto story = lookup({peerId, id})) {
 			if ((*story)->expired() && !(*story)->inProfile()) {
 				applyDeleted(peer, id);
 			}
@@ -373,9 +359,8 @@ void Stories::parseAndApply(const MTPPeerStories &stories) {
 	const auto &data = stories.data();
 	const auto peerId = peerFromMTP(data.vpeer());
 	const auto already = _readTill.find(peerId);
-	const auto readTill = std::max(
-		data.vmax_read_id().value_or_empty(),
-		(already != end(_readTill) ? already->second : 0));
+	const auto readTill =
+		std::max(data.vmax_read_id().value_or_empty(), (already != end(_readTill) ? already->second : 0));
 	const auto peer = _owner->peer(peerId);
 	auto result = StoriesSource{
 		.peer = peer,
@@ -408,12 +393,10 @@ void Stories::parseAndApply(const MTPPeerStories &stories) {
 	} else {
 		_all.emplace(peerId, std::move(result));
 	}
-	const auto add = [&](StorySourcesList list) {
+	const auto add = [&](StorySourcesList list)
+	{
 		auto &sources = _sources[static_cast<int>(list)];
-		const auto i = ranges::find(
-			sources,
-			peerId,
-			&StoriesSourceInfo::id);
+		const auto i = ranges::find(sources, peerId, &StoriesSourceInfo::id);
 		if (i == end(sources)) {
 			sources.push_back(info);
 		} else if (*i == info) {
@@ -423,18 +406,13 @@ void Stories::parseAndApply(const MTPPeerStories &stories) {
 		}
 		sort(list);
 	};
-	if (result.peer->isSelf()
-		|| (result.peer->isChannel() && result.peer->asChannel()->amIn())
-		|| (result.peer->isUser()
-			&& (result.peer->asUser()->isBot()
-				|| result.peer->asUser()->isContact()))
-		|| result.peer->isServiceUser()) {
+	if (result.peer->isSelf() || (result.peer->isChannel() && result.peer->asChannel()->amIn()) ||
+		(result.peer->isUser() && (result.peer->asUser()->isBot() || result.peer->asUser()->isContact())) ||
+		result.peer->isServiceUser()) {
 		const auto hidden = result.peer->hasStoriesHidden();
 		using List = StorySourcesList;
 		add(hidden ? List::Hidden : List::NotHidden);
-		applyDeletedFromSources(
-			peerId,
-			hidden ? List::NotHidden : List::Hidden);
+		applyDeletedFromSources(peerId, hidden ? List::NotHidden : List::Hidden);
 	} else {
 		applyDeletedFromSources(peerId, StorySourcesList::NotHidden);
 		applyDeletedFromSources(peerId, StorySourcesList::Hidden);
@@ -443,10 +421,7 @@ void Stories::parseAndApply(const MTPPeerStories &stories) {
 	updatePeerStoriesState(result.peer);
 }
 
-Story *Stories::parseAndApply(
-		not_null<PeerData*> peer,
-		const MTPDstoryItem &data,
-		TimeId now) {
+Story *Stories::parseAndApply(not_null<PeerData *> peer, const MTPDstoryItem &data, TimeId now) {
 	const auto media = ParseMedia(_owner, data.vmedia());
 	if (!media) {
 		return nullptr;
@@ -457,7 +432,7 @@ Story *Stories::parseAndApply(
 		return nullptr;
 	}
 	const auto id = data.vid().v;
-	const auto fullId = FullStoryId{ peer->id, id };
+	const auto fullId = FullStoryId{peer->id, id};
 	auto &stories = _stories[peer->id];
 	const auto i = stories.find(id);
 	if (i != end(stories)) {
@@ -481,13 +456,8 @@ Story *Stories::parseAndApply(
 		return result;
 	}
 	const auto wasDeleted = _deleted.remove(fullId);
-	const auto result = stories.emplace(id, std::make_unique<Story>(
-		id,
-		peer,
-		StoryMedia{ *media },
-		data,
-		now
-	)).first->second.get();
+	const auto result =
+		stories.emplace(id, std::make_unique<Story>(id, peer, StoryMedia{*media}, data, now)).first->second.get();
 
 	if (const auto archive = lookupArchive(peer)) {
 		const auto added = archive->ids.list.emplace(id).second;
@@ -513,61 +483,58 @@ Story *Stories::parseAndApply(
 	return result;
 }
 
-StoryIdDates Stories::parseAndApply(
-		not_null<PeerData*> peer,
-		const MTPstoryItem &story,
-		TimeId now) {
-	return story.match([&](const MTPDstoryItem &data) {
-		if (const auto story = parseAndApply(peer, data, now)) {
-			return story->idDates();
-		}
-		applyDeleted(peer, data.vid().v);
-		return StoryIdDates();
-	}, [&](const MTPDstoryItemSkipped &data) {
-		const auto expires = data.vexpire_date().v;
-		const auto expired = (expires <= now);
-		const auto fullId = FullStoryId{ peer->id, data.vid().v };
-		if (!expired) {
-			registerExpiring(expires, fullId);
-		} else if (!hasArchive(peer)) {
+StoryIdDates Stories::parseAndApply(not_null<PeerData *> peer, const MTPstoryItem &story, TimeId now) {
+	return story.match(
+		[&](const MTPDstoryItem &data)
+		{
+			if (const auto story = parseAndApply(peer, data, now)) {
+				return story->idDates();
+			}
 			applyDeleted(peer, data.vid().v);
 			return StoryIdDates();
-		} else {
-			_expiring.remove(expires, fullId);
-			applyExpired(fullId);
-		}
-		return StoryIdDates{
-			data.vid().v,
-			data.vdate().v,
-			data.vexpire_date().v,
-		};
-	}, [&](const MTPDstoryItemDeleted &data) {
-		applyDeleted(peer, data.vid().v);
-		return StoryIdDates();
-	});
+		},
+		[&](const MTPDstoryItemSkipped &data)
+		{
+			const auto expires = data.vexpire_date().v;
+			const auto expired = (expires <= now);
+			const auto fullId = FullStoryId{peer->id, data.vid().v};
+			if (!expired) {
+				registerExpiring(expires, fullId);
+			} else if (!hasArchive(peer)) {
+				applyDeleted(peer, data.vid().v);
+				return StoryIdDates();
+			} else {
+				_expiring.remove(expires, fullId);
+				applyExpired(fullId);
+			}
+			return StoryIdDates{
+				data.vid().v,
+				data.vdate().v,
+				data.vexpire_date().v,
+			};
+		},
+		[&](const MTPDstoryItemDeleted &data)
+		{
+			applyDeleted(peer, data.vid().v);
+			return StoryIdDates();
+		});
 }
 
-void Stories::updateDependentMessages(not_null<Data::Story*> story) {
+void Stories::updateDependentMessages(not_null<Data::Story *> story) {
 	const auto i = _dependentMessages.find(story);
 	if (i != end(_dependentMessages)) {
 		for (const auto &dependent : i->second) {
 			dependent->updateDependencyItem();
 		}
 	}
-	session().changes().storyUpdated(
-		story,
-		Data::StoryUpdate::Flag::Edited);
+	session().changes().storyUpdated(story, Data::StoryUpdate::Flag::Edited);
 }
 
-void Stories::registerDependentMessage(
-		not_null<HistoryItem*> dependent,
-		not_null<Data::Story*> dependency) {
+void Stories::registerDependentMessage(not_null<HistoryItem *> dependent, not_null<Data::Story *> dependency) {
 	_dependentMessages[dependency].emplace(dependent);
 }
 
-void Stories::unregisterDependentMessage(
-		not_null<HistoryItem*> dependent,
-		not_null<Data::Story*> dependency) {
+void Stories::unregisterDependentMessage(not_null<HistoryItem *> dependent, not_null<Data::Story *> dependency) {
 	const auto i = _dependentMessages.find(dependency);
 	if (i != end(_dependentMessages)) {
 		if (i->second.remove(dependent) && i->second.empty()) {
@@ -576,7 +543,7 @@ void Stories::unregisterDependentMessage(
 	}
 }
 
-void Stories::savedStateChanged(not_null<Story*> story) {
+void Stories::savedStateChanged(not_null<Story *> story) {
 	const auto id = story->id();
 	const auto peer = story->peer()->id;
 	const auto inProfile = story->inProfile();
@@ -608,50 +575,49 @@ void Stories::loadMore(StorySourcesList list) {
 	const auto hidden = (list == StorySourcesList::Hidden);
 	const auto api = &_owner->session().api();
 	using Flag = MTPstories_GetAllStories::Flag;
-	_loadMoreRequestId[index] = api->request(MTPstories_GetAllStories(
-		MTP_flags((hidden ? Flag::f_hidden : Flag())
-			| (_sourcesStates[index].isEmpty()
-				? Flag(0)
-				: (Flag::f_next | Flag::f_state))),
-		MTP_string(_sourcesStates[index])
-	)).done([=](const MTPstories_AllStories &result) {
-		_loadMoreRequestId[index] = 0;
+	_loadMoreRequestId[index] =
+		api->request(MTPstories_GetAllStories(
+						 MTP_flags((hidden ? Flag::f_hidden : Flag()) |
+								   (_sourcesStates[index].isEmpty() ? Flag(0) : (Flag::f_next | Flag::f_state))),
+						 MTP_string(_sourcesStates[index])))
+			.done(
+				[=](const MTPstories_AllStories &result)
+				{
+					_loadMoreRequestId[index] = 0;
 
-		result.match([&](const MTPDstories_allStories &data) {
-			_owner->processUsers(data.vusers());
-			_owner->processChats(data.vchats());
-			_sourcesStates[index] = qs(data.vstate());
-			_sourcesLoaded[index] = !data.is_has_more();
-			for (const auto &single : data.vpeer_stories().v) {
-				parseAndApply(single);
-			}
-		}, [](const MTPDstories_allStoriesNotModified &) {
-		});
+					result.match(
+						[&](const MTPDstories_allStories &data)
+						{
+							_owner->processUsers(data.vusers());
+							_owner->processChats(data.vchats());
+							_sourcesStates[index] = qs(data.vstate());
+							_sourcesLoaded[index] = !data.is_has_more();
+							for (const auto &single : data.vpeer_stories().v) {
+								parseAndApply(single);
+							}
+						},
+						[](const MTPDstories_allStoriesNotModified &) {});
 
-		result.match([&](const auto &data) {
-			apply(data.vstealth_mode());
-		});
+					result.match([&](const auto &data) { apply(data.vstealth_mode()); });
 
-		preloadListsMore();
-	}).fail([=] {
-		_loadMoreRequestId[index] = 0;
-	}).send();
+					preloadListsMore();
+				})
+			.fail([=] { _loadMoreRequestId[index] = 0; })
+			.send();
 }
 
 void Stories::preloadListsMore() {
-	if (_loadMoreRequestId[static_cast<int>(StorySourcesList::NotHidden)]
-		|| _loadMoreRequestId[static_cast<int>(StorySourcesList::Hidden)]) {
+	if (_loadMoreRequestId[static_cast<int>(StorySourcesList::NotHidden)] ||
+		_loadMoreRequestId[static_cast<int>(StorySourcesList::Hidden)]) {
 		return;
 	}
-	const auto loading = [&](StorySourcesList list) {
-		return _loadMoreRequestId[static_cast<int>(list)] != 0;
-	};
-	const auto countLoaded = [&](StorySourcesList list) {
+	const auto loading = [&](StorySourcesList list) { return _loadMoreRequestId[static_cast<int>(list)] != 0; };
+	const auto countLoaded = [&](StorySourcesList list)
+	{
 		const auto index = static_cast<int>(list);
 		return _sourcesLoaded[index] || !_sourcesStates[index].isEmpty();
 	};
-	if (loading(StorySourcesList::NotHidden)
-		|| loading(StorySourcesList::Hidden)) {
+	if (loading(StorySourcesList::NotHidden) || loading(StorySourcesList::Hidden)) {
 		return;
 	} else if (!countLoaded(StorySourcesList::NotHidden)) {
 		loadMore(StorySourcesList::NotHidden);
@@ -681,9 +647,7 @@ void Stories::pushHiddenCountsToFolder() {
 		_folderForHidden = _owner->folder(Folder::kId);
 	}
 	const auto count = int(list.size());
-	const auto unread = ranges::count_if(
-		list,
-		[](const StoriesSourceInfo &info) { return info.unreadCount > 0; });
+	const auto unread = ranges::count_if(list, [](const StoriesSourceInfo &info) { return info.unreadCount > 0; });
 	_folderForHidden->updateStoriesCount(count, unread);
 }
 
@@ -702,10 +666,7 @@ void Stories::sendResolveRequests() {
 			i = _resolvePending.erase(i); // Invalidates `ids`.
 			leftToSend -= int(sent.size());
 		} else {
-			sent = {
-				std::make_move_iterator(begin(ids)),
-				std::make_move_iterator(begin(ids) + leftToSend)
-			};
+			sent = {std::make_move_iterator(begin(ids)), std::make_move_iterator(begin(ids) + leftToSend)};
 			ids.erase(begin(ids), begin(ids) + leftToSend);
 			leftToSend = 0;
 		}
@@ -721,11 +682,12 @@ void Stories::sendResolveRequests() {
 	for (auto &entry : byPeer) {
 		const auto peerId = entry.first;
 		auto &prepared = entry.second;
-		const auto finish = [=](PeerId peerId) {
+		const auto finish = [=](PeerId peerId)
+		{
 			const auto sent = _resolveSent.take(peerId);
 			Assert(sent.has_value());
 			for (const auto &[storyId, list] : *sent) {
-				finalizeResolve({ peerId, storyId });
+				finalizeResolve({peerId, storyId});
 				for (const auto &callback : list) {
 					callback();
 				}
@@ -736,49 +698,45 @@ void Stories::sendResolveRequests() {
 			}
 		};
 		const auto peer = _owner->session().data().peer(peerId);
-		api->request(MTPstories_GetStoriesByID(
-			peer->input,
-			MTP_vector<MTPint>(prepared)
-		)).done([=](const MTPstories_Stories &result) {
-			owner().processUsers(result.data().vusers());
-			owner().processChats(result.data().vchats());
-			processResolvedStories(peer, result.data().vstories().v);
-			finish(peer->id);
-		}).fail([=] {
-			finish(peerId);
-		}).send();
-	 }
+		api->request(MTPstories_GetStoriesByID(peer->input, MTP_vector<MTPint>(prepared)))
+			.done(
+				[=](const MTPstories_Stories &result)
+				{
+					owner().processUsers(result.data().vusers());
+					owner().processChats(result.data().vchats());
+					processResolvedStories(peer, result.data().vstories().v);
+					finish(peer->id);
+				})
+			.fail([=] { finish(peerId); })
+			.send();
+	}
 }
 
-void Stories::processResolvedStories(
-		not_null<PeerData*> peer,
-		const QVector<MTPStoryItem> &list) {
+void Stories::processResolvedStories(not_null<PeerData *> peer, const QVector<MTPStoryItem> &list) {
 	const auto now = base::unixtime::now();
 	for (const auto &item : list) {
-		item.match([&](const MTPDstoryItem &data) {
-			if (!parseAndApply(peer, data, now)) {
-				applyDeleted(peer, data.vid().v);
-			}
-		}, [&](const MTPDstoryItemSkipped &data) {
-			LOG(("API Error: Unexpected storyItemSkipped in resolve."));
-		}, [&](const MTPDstoryItemDeleted &data) {
-			applyDeleted(peer, data.vid().v);
-		});
+		item.match(
+			[&](const MTPDstoryItem &data)
+			{
+				if (!parseAndApply(peer, data, now)) {
+					applyDeleted(peer, data.vid().v);
+				}
+			},
+			[&](const MTPDstoryItemSkipped &data) { LOG(("API Error: Unexpected storyItemSkipped in resolve.")); },
+			[&](const MTPDstoryItemDeleted &data) { applyDeleted(peer, data.vid().v); });
 	}
 }
 
 void Stories::finalizeResolve(FullStoryId id) {
 	const auto already = lookup(id);
 	if (!already.has_value() && already.error() == NoStory::Unknown) {
-		LOG(("API Error: Could not resolve story %1_%2"
-			).arg(id.peer.value
-			).arg(id.story));
+		LOG(("API Error: Could not resolve story %1_%2").arg(id.peer.value).arg(id.story));
 		applyDeleted(_owner->peer(id.peer), id.story);
 	}
 }
 
-void Stories::applyDeleted(not_null<PeerData*> peer, StoryId id) {
-	const auto fullId = FullStoryId{ peer->id, id };
+void Stories::applyDeleted(not_null<PeerData *> peer, StoryId id) {
+	const auto fullId = FullStoryId{peer->id, id};
 	applyRemovedFromActive(fullId);
 
 	if (const auto channel = peer->asChannel()) {
@@ -793,19 +751,14 @@ void Stories::applyDeleted(not_null<PeerData*> peer, StoryId id) {
 	if (i != end(_stories)) {
 		const auto j = i->second.find(id);
 		if (j != end(i->second)) {
-			const auto &story
-				= _deletingStories[fullId]
-				= std::move(j->second);
+			const auto &story = _deletingStories[fullId] = std::move(j->second);
 			_expiring.remove(story->expires(), story->fullId());
 			i->second.erase(j);
 
-			session().changes().storyUpdated(
-				story.get(),
-				UpdateFlag::Destroyed);
+			session().changes().storyUpdated(story.get(), UpdateFlag::Destroyed);
 			removeDependencyStory(story.get());
 			if (hasArchive(story->peer())) {
-				if (const auto k = _archive.find(peerId)
-					; k != end(_archive)) {
+				if (const auto k = _archive.find(peerId); k != end(_archive)) {
 					const auto archive = &k->second;
 					if (archive->ids.list.remove(id)) {
 						if (archive->total > 0) {
@@ -862,13 +815,11 @@ void Stories::applyExpired(FullStoryId id) {
 }
 
 void Stories::applyRemovedFromActive(FullStoryId id) {
-	const auto removeFromList = [&](StorySourcesList list) {
+	const auto removeFromList = [&](StorySourcesList list)
+	{
 		const auto index = static_cast<int>(list);
 		auto &sources = _sources[index];
-		const auto i = ranges::find(
-			sources,
-			id.peer,
-			&StoriesSourceInfo::id);
+		const auto i = ranges::find(sources, id.peer, &StoriesSourceInfo::id);
 		if (i != end(sources)) {
 			sources.erase(i);
 			notifySourcesChanged(list);
@@ -876,7 +827,7 @@ void Stories::applyRemovedFromActive(FullStoryId id) {
 	};
 	const auto i = _all.find(id.peer);
 	if (i != end(_all)) {
-		const auto j = i->second.ids.lower_bound(StoryIdDates{ id.story });
+		const auto j = i->second.ids.lower_bound(StoryIdDates{id.story});
 		if (j != end(i->second.ids) && j->id == id.story) {
 			i->second.ids.erase(j);
 			const auto peer = i->second.peer;
@@ -893,17 +844,14 @@ void Stories::applyRemovedFromActive(FullStoryId id) {
 
 void Stories::applyDeletedFromSources(PeerId id, StorySourcesList list) {
 	auto &sources = _sources[static_cast<int>(list)];
-	const auto i = ranges::find(
-		sources,
-		id,
-		&StoriesSourceInfo::id);
+	const auto i = ranges::find(sources, id, &StoriesSourceInfo::id);
 	if (i != end(sources)) {
 		sources.erase(i);
 	}
 	notifySourcesChanged(list);
 }
 
-void Stories::removeDependencyStory(not_null<Story*> story) {
+void Stories::removeDependencyStory(not_null<Story *> story) {
 	const auto i = _dependentMessages.find(story);
 	if (i != end(_dependentMessages)) {
 		const auto items = std::move(i->second);
@@ -920,12 +868,11 @@ void Stories::sort(StorySourcesList list) {
 	auto &sources = _sources[index];
 	const auto self = _owner->session().userPeerId();
 	const auto changelogSenderId = UserData::kServiceNotificationsId;
-	const auto proj = [&](const StoriesSourceInfo &info) {
-		const auto key = int64(info.last)
-			+ (info.premium ? (int64(1) << 47) : 0)
-			+ ((info.id == changelogSenderId) ? (int64(1) << 47) : 0)
-			+ ((info.unreadCount > 0) ? (int64(1) << 49) : 0)
-			+ ((info.id == self) ? (int64(1) << 50) : 0);
+	const auto proj = [&](const StoriesSourceInfo &info)
+	{
+		const auto key = int64(info.last) + (info.premium ? (int64(1) << 47) : 0) +
+			((info.id == changelogSenderId) ? (int64(1) << 47) : 0) + ((info.unreadCount > 0) ? (int64(1) << 49) : 0) +
+			((info.id == self) ? (int64(1) << 50) : 0);
 		return std::make_pair(key, info.id);
 	};
 	ranges::sort(sources, ranges::greater(), proj);
@@ -933,7 +880,7 @@ void Stories::sort(StorySourcesList list) {
 	preloadSourcesChanged(list);
 }
 
-std::shared_ptr<HistoryItem> Stories::lookupItem(not_null<Story*> story) {
+std::shared_ptr<HistoryItem> Stories::lookupItem(not_null<Story *> story) {
 	const auto i = _items.find(story->peer()->id);
 	if (i == end(_items)) {
 		return nullptr;
@@ -945,25 +892,26 @@ std::shared_ptr<HistoryItem> Stories::lookupItem(not_null<Story*> story) {
 	return j->second.lock();
 }
 
-StealthMode Stories::stealthMode() const {
-	return _stealthMode.current();
-}
+StealthMode Stories::stealthMode() const { return _stealthMode.current(); }
 
-rpl::producer<StealthMode> Stories::stealthModeValue() const {
-	return _stealthMode.value();
-}
+rpl::producer<StealthMode> Stories::stealthModeValue() const { return _stealthMode.value(); }
 
 void Stories::activateStealthMode(Fn<void()> done) {
 	const auto api = &session().api();
 	using Flag = MTPstories_ActivateStealthMode::Flag;
-	api->request(MTPstories_ActivateStealthMode(
-		MTP_flags(Flag::f_past | Flag::f_future)
-	)).done([=](const MTPUpdates &result) {
-		api->applyUpdates(result);
-		if (done) done();
-	}).fail([=] {
-		if (done) done();
-	}).send();
+	api->request(MTPstories_ActivateStealthMode(MTP_flags(Flag::f_past | Flag::f_future)))
+		.done(
+			[=](const MTPUpdates &result)
+			{
+				api->applyUpdates(result);
+				if (done) done();
+			})
+		.fail(
+			[=]
+			{
+				if (done) done();
+			})
+		.send();
 }
 
 void Stories::sendReaction(FullStoryId id, Data::ReactionId reaction) {
@@ -972,16 +920,13 @@ void Stories::sendReaction(FullStoryId id, Data::ReactionId reaction) {
 		story->setReactionId(reaction);
 
 		const auto api = &session().api();
-		api->request(MTPstories_SendReaction(
-			MTP_flags(0),
-			story->peer()->input,
-			MTP_int(id.story),
-			ReactionToMTP(reaction)
-		)).send();
+		api->request(
+			   MTPstories_SendReaction(MTP_flags(0), story->peer()->input, MTP_int(id.story), ReactionToMTP(reaction)))
+			.send();
 	}
 }
 
-std::shared_ptr<HistoryItem> Stories::resolveItem(not_null<Story*> story) {
+std::shared_ptr<HistoryItem> Stories::resolveItem(not_null<Story *> story) {
 	auto &items = _items[story->peer()->id];
 	auto i = items.find(story->id());
 	if (i == end(items)) {
@@ -990,9 +935,8 @@ std::shared_ptr<HistoryItem> Stories::resolveItem(not_null<Story*> story) {
 		return result;
 	}
 	const auto history = _owner->history(story->peer());
-	auto result = std::shared_ptr<HistoryItem>(
-		history->makeMessage(StoryIdToMsgId(story->id()), story).get(),
-		HistoryItem::Destroyer());
+	auto result = std::shared_ptr<HistoryItem>(history->makeMessage(StoryIdToMsgId(story->id()), story).get(),
+											   HistoryItem::Destroyer());
 	i->second = result;
 	return result;
 }
@@ -1007,29 +951,21 @@ const StoriesSource *Stories::source(PeerId id) const {
 	return (i != end(_all)) ? &i->second : nullptr;
 }
 
-const std::vector<StoriesSourceInfo> &Stories::sources(
-		StorySourcesList list) const {
+const std::vector<StoriesSourceInfo> &Stories::sources(StorySourcesList list) const {
 	return _sources[static_cast<int>(list)];
 }
 
-bool Stories::sourcesLoaded(StorySourcesList list) const {
-	return _sourcesLoaded[static_cast<int>(list)];
-}
+bool Stories::sourcesLoaded(StorySourcesList list) const { return _sourcesLoaded[static_cast<int>(list)]; }
 
 rpl::producer<> Stories::sourcesChanged(StorySourcesList list) const {
 	return _sourcesChanged[static_cast<int>(list)].events();
 }
 
-rpl::producer<PeerId> Stories::sourceChanged() const {
-	return _sourceChanged.events();
-}
+rpl::producer<PeerId> Stories::sourceChanged() const { return _sourceChanged.events(); }
 
-rpl::producer<PeerId> Stories::itemsChanged() const {
-	return _itemsChanged.events();
-}
+rpl::producer<PeerId> Stories::itemsChanged() const { return _itemsChanged.events(); }
 
-base::expected<not_null<Story*>, NoStory> Stories::lookup(
-		FullStoryId id) const {
+base::expected<not_null<Story *>, NoStory> Stories::lookup(FullStoryId id) const {
 	const auto i = _stories.find(id.peer);
 	if (i != end(_stories)) {
 		const auto j = i->second.find(id.story);
@@ -1037,8 +973,7 @@ base::expected<not_null<Story*>, NoStory> Stories::lookup(
 			return j->second.get();
 		}
 	}
-	return base::make_unexpected(
-		_deleted.contains(id) ? NoStory::Deleted : NoStory::Unknown);
+	return base::make_unexpected(_deleted.contains(id) ? NoStory::Deleted : NoStory::Unknown);
 }
 
 void Stories::resolve(FullStoryId id, Fn<void()> done, bool force) {
@@ -1061,9 +996,7 @@ void Stories::resolve(FullStoryId id, Fn<void()> done, bool force) {
 	}
 	auto &ids = _resolvePending[id.peer];
 	if (ids.empty()) {
-		crl::on_main(&session(), [=] {
-			sendResolveRequests();
-		});
+		crl::on_main(&session(), [=] { sendResolveRequests(); });
 	}
 	auto &callbacks = ids[id.story];
 	if (done) {
@@ -1074,24 +1007,24 @@ void Stories::resolve(FullStoryId id, Fn<void()> done, bool force) {
 void Stories::loadAround(FullStoryId id, StoriesContext context) {
 	if (v::is<StoriesContextSingle>(context.data)) {
 		return;
-	} else if (v::is<StoriesContextSaved>(context.data)
-		|| v::is<StoriesContextArchive>(context.data)) {
+	} else if (v::is<StoriesContextSaved>(context.data) || v::is<StoriesContextArchive>(context.data)) {
 		return;
 	}
 	const auto i = _all.find(id.peer);
 	if (i == end(_all)) {
 		return;
 	}
-	const auto j = i->second.ids.lower_bound(StoryIdDates{ id.story });
+	const auto j = i->second.ids.lower_bound(StoryIdDates{id.story});
 	if (j == end(i->second.ids) || j->id != id.story) {
 		return;
 	}
-	const auto ignore = [&] {
+	const auto ignore = [&]
+	{
 		const auto side = kIgnorePreloadAroundIfLoaded;
 		const auto left = ranges::min(int(j - begin(i->second.ids)), side);
 		const auto right = ranges::min(int(end(i->second.ids) - j), side);
 		for (auto k = j - left; k != j + right; ++k) {
-			const auto maybeStory = lookup({ id.peer, k->id });
+			const auto maybeStory = lookup({id.peer, k->id});
 			if (!maybeStory && maybeStory.error() == NoStory::Unknown) {
 				return false;
 			}
@@ -1107,7 +1040,7 @@ void Stories::loadAround(FullStoryId id, StoriesContext context) {
 	const auto from = j - left;
 	const auto till = j + right;
 	for (auto k = from; k != till; ++k) {
-		resolve({ id.peer, k->id }, nullptr);
+		resolve({id.peer, k->id}, nullptr);
 	}
 }
 
@@ -1145,26 +1078,28 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 bool Stories::bumpReadTill(PeerId peerId, StoryId maxReadTill) {
 	auto &till = _readTill[peerId];
 	auto refreshItems = std::vector<StoryId>();
-	const auto guard = gsl::finally([&] {
-		for (const auto id : refreshItems) {
-			_owner->refreshStoryItemViews({ peerId, id });
-		}
-	});
+	const auto guard = gsl::finally(
+		[&]
+		{
+			for (const auto id : refreshItems) {
+				_owner->refreshStoryItemViews({peerId, id});
+			}
+		});
 	if (till < maxReadTill) {
 		const auto from = till;
 		till = maxReadTill;
 		updatePeerStoriesState(_owner->peer(peerId));
 		const auto i = _stories.find(peerId);
 		if (i != end(_stories)) {
-			refreshItems = ranges::make_subrange(
-				i->second.lower_bound(from + 1),
-				i->second.lower_bound(till + 1)
-			) | ranges::views::transform([=](const auto &pair) {
-				_owner->session().changes().storyUpdated(
-					pair.second.get(),
-					StoryUpdate::Flag::MarkRead);
-				return pair.first;
-			}) | ranges::to_vector;
+			refreshItems =
+				ranges::make_subrange(i->second.lower_bound(from + 1), i->second.lower_bound(till + 1)) |
+				ranges::views::transform(
+					[=](const auto &pair)
+					{
+						_owner->session().changes().storyUpdated(pair.second.get(), StoryUpdate::Flag::MarkRead);
+						return pair.first;
+					}) |
+				ranges::to_vector;
 		}
 	}
 	const auto i = _all.find(peerId);
@@ -1175,12 +1110,10 @@ bool Stories::bumpReadTill(PeerId peerId, StoryId maxReadTill) {
 	i->second.readTill = maxReadTill;
 	const auto nowUnreadCount = i->second.unreadCount();
 	if (wasUnreadCount != nowUnreadCount) {
-		const auto refreshInList = [&](StorySourcesList list) {
+		const auto refreshInList = [&](StorySourcesList list)
+		{
 			auto &sources = _sources[static_cast<int>(list)];
-			const auto i = ranges::find(
-				sources,
-				peerId,
-				&StoriesSourceInfo::id);
+			const auto i = ranges::find(sources, peerId, &StoriesSourceInfo::id);
 			if (i != end(sources)) {
 				i->unreadCount = nowUnreadCount;
 				sort(list);
@@ -1192,35 +1125,25 @@ bool Stories::bumpReadTill(PeerId peerId, StoryId maxReadTill) {
 	return true;
 }
 
-void Stories::toggleHidden(
-		PeerId peerId,
-		bool hidden,
-		std::shared_ptr<Ui::Show> show) {
+void Stories::toggleHidden(PeerId peerId, bool hidden, std::shared_ptr<Ui::Show> show) {
 	const auto peer = _owner->peer(peerId);
 	const auto justRemove = peer->isServiceUser() && hidden;
 	if (peer->hasStoriesHidden() != hidden) {
 		if (!justRemove) {
 			peer->setStoriesHidden(hidden);
 		}
-		session().api().request(MTPstories_TogglePeerStoriesHidden(
-			peer->input,
-			MTP_bool(hidden)
-		)).send();
+		session().api().request(MTPstories_TogglePeerStoriesHidden(peer->input, MTP_bool(hidden))).send();
 	}
 
 	const auto name = peer->shortName();
-	const auto guard = gsl::finally([&] {
-		if (show && !justRemove) {
-			const auto phrase = hidden
-				? tr::lng_stories_hidden_to_contacts
-				: tr::lng_stories_shown_in_chats;
-			show->showToast(phrase(
-				tr::now,
-				lt_user,
-				Ui::Text::Bold(name),
-				Ui::Text::RichLangValue));
-		}
-	});
+	const auto guard = gsl::finally(
+		[&]
+		{
+			if (show && !justRemove) {
+				const auto phrase = hidden ? tr::lng_stories_hidden_to_contacts : tr::lng_stories_shown_in_chats;
+				show->showToast(phrase(tr::now, lt_user, Ui::Text::Bold(name), Ui::Text::RichLangValue));
+			}
+		});
 
 	if (justRemove) {
 		apply(peer, nullptr);
@@ -1267,9 +1190,7 @@ void Stories::toggleHidden(
 	}
 }
 
-void Stories::sendMarkAsReadRequest(
-		not_null<PeerData*> peer,
-		StoryId tillId) {
+void Stories::sendMarkAsReadRequest(not_null<PeerData *> peer, StoryId tillId) {
 	const auto settings = &AyuSettings::getInstance();
 	if (!settings->sendReadStories) {
 		return;
@@ -1277,20 +1198,17 @@ void Stories::sendMarkAsReadRequest(
 
 	const auto peerId = peer->id;
 	_markReadRequests.emplace(peerId);
-	const auto finish = [=] {
+	const auto finish = [=]
+	{
 		_markReadRequests.remove(peerId);
-		if (!_markReadTimer.isActive()
-			&& _markReadPending.contains(peerId)) {
+		if (!_markReadTimer.isActive() && _markReadPending.contains(peerId)) {
 			sendMarkAsReadRequests();
 		}
 		checkQuitPreventFinished();
 	};
 
 	const auto api = &_owner->session().api();
-	api->request(MTPstories_ReadStories(
-		peer->input,
-		MTP_int(tillId)
-	)).done(finish).fail(finish).send();
+	api->request(MTPstories_ReadStories(peer->input, MTP_int(tillId))).done(finish).fail(finish).send();
 }
 
 void Stories::checkQuitPreventFinished() {
@@ -1334,7 +1252,8 @@ void Stories::sendIncrementViewsRequests() {
 		return;
 	}
 
-	struct Prepared {
+	struct Prepared
+	{
 		PeerId peer = 0;
 		QVector<MTPint> ids;
 	};
@@ -1343,7 +1262,7 @@ void Stories::sendIncrementViewsRequests() {
 		if (_incrementViewsRequests.contains(peer)) {
 			continue;
 		}
-		prepared.push_back({ .peer = peer });
+		prepared.push_back({.peer = peer});
 		for (const auto &id : ids) {
 			prepared.back().ids.push_back(MTP_int(id));
 		}
@@ -1352,33 +1271,27 @@ void Stories::sendIncrementViewsRequests() {
 	const auto api = &_owner->session().api();
 	for (auto &[peer, ids] : prepared) {
 		_incrementViewsRequests.emplace(peer);
-		const auto finish = [=, peer = peer] {
+		const auto finish = [=, peer = peer]
+		{
 			_incrementViewsRequests.remove(peer);
-			if (!_incrementViewsTimer.isActive()
-				&& _incrementViewsPending.contains(peer)) {
+			if (!_incrementViewsTimer.isActive() && _incrementViewsPending.contains(peer)) {
 				sendIncrementViewsRequests();
 			}
 			checkQuitPreventFinished();
 		};
-		api->request(MTPstories_IncrementStoryViews(
-			_owner->peer(peer)->input,
-			MTP_vector<MTPint>(std::move(ids))
-		)).done(finish).fail(finish).send();
+		api->request(MTPstories_IncrementStoryViews(_owner->peer(peer)->input, MTP_vector<MTPint>(std::move(ids))))
+			.done(finish)
+			.fail(finish)
+			.send();
 		_incrementViewsPending.remove(peer);
 	}
 }
 
-void Stories::loadViewsSlice(
-		not_null<PeerData*> peer,
-		StoryId id,
-		QString offset,
-		Fn<void(StoryViews)> done) {
+void Stories::loadViewsSlice(not_null<PeerData *> peer, StoryId id, QString offset, Fn<void(StoryViews)> done) {
 	Expects(peer->isSelf() || !done);
 
-	if (_viewsStoryPeer == peer
-		&& _viewsStoryId == id
-		&& _viewsOffset == offset
-		&& (!offset.isEmpty() || _viewsRequestId)) {
+	if (_viewsStoryPeer == peer && _viewsStoryId == id && _viewsOffset == offset &&
+		(!offset.isEmpty() || _viewsRequestId)) {
 		if (_viewsRequestId) {
 			_viewsDone = std::move(done);
 		}
@@ -1396,16 +1309,10 @@ void Stories::loadViewsSlice(
 	}
 }
 
-void Stories::loadReactionsSlice(
-		not_null<PeerData*> peer,
-		StoryId id,
-		QString offset,
-		Fn<void(StoryViews)> done) {
+void Stories::loadReactionsSlice(not_null<PeerData *> peer, StoryId id, QString offset, Fn<void(StoryViews)> done) {
 	Expects(peer->isChannel());
 
-	if (_reactionsStoryPeer == peer
-		&& _reactionsStoryId == id
-		&& _reactionsOffset == offset) {
+	if (_reactionsStoryPeer == peer && _reactionsStoryId == id && _reactionsOffset == offset) {
 		if (_reactionsRequestId) {
 			_reactionsDone = std::move(done);
 		}
@@ -1419,71 +1326,78 @@ void Stories::loadReactionsSlice(
 	using Flag = MTPstories_GetStoryReactionsList::Flag;
 	const auto api = &_owner->session().api();
 	_owner->session().api().request(_reactionsRequestId).cancel();
-	_reactionsRequestId = api->request(MTPstories_GetStoryReactionsList(
-		MTP_flags(offset.isEmpty() ? Flag() : Flag::f_offset),
-		_reactionsStoryPeer->input,
-		MTP_int(_reactionsStoryId),
-		MTPReaction(),
-		MTP_string(_reactionsOffset),
-		MTP_int(kViewsPerPage)
-	)).done([=](const MTPstories_StoryReactionsList &result) {
-		_reactionsRequestId = 0;
+	_reactionsRequestId =
+		api->request(MTPstories_GetStoryReactionsList(MTP_flags(offset.isEmpty() ? Flag() : Flag::f_offset),
+													  _reactionsStoryPeer->input,
+													  MTP_int(_reactionsStoryId),
+													  MTPReaction(),
+													  MTP_string(_reactionsOffset),
+													  MTP_int(kViewsPerPage)))
+			.done(
+				[=](const MTPstories_StoryReactionsList &result)
+				{
+					_reactionsRequestId = 0;
 
-		const auto &data = result.data();
-		auto slice = StoryViews{
-			.nextOffset = data.vnext_offset().value_or_empty(),
-			.reactions = data.vcount().v,
-			.total = data.vcount().v,
-		};
-		_owner->processUsers(data.vusers());
-		_owner->processChats(data.vchats());
-		slice.list.reserve(data.vreactions().v.size());
-		for (const auto &reaction : data.vreactions().v) {
-			reaction.match([&](const MTPDstoryReaction &data) {
-				slice.list.push_back({
-					.peer = _owner->peer(peerFromMTP(data.vpeer_id())),
-					.reaction = ReactionFromMTP(data.vreaction()),
-					.date = data.vdate().v,
-				});
-			}, [&](const MTPDstoryReactionPublicRepost &data) {
-				const auto story = applySingle(
-					peerFromMTP(data.vpeer_id()),
-					data.vstory());
-				if (story) {
-					slice.list.push_back({
-						.peer = story->peer(),
-						.repostId = story->id(),
-						});
-				}
-			}, [&](const MTPDstoryReactionPublicForward &data) {
-				const auto item = _owner->addNewMessage(
-					data.vmessage(),
-					{},
-					NewMessageType::Existing);
-				if (item) {
-					slice.list.push_back({
-						.peer = item->history()->peer,
-						.forwardId = item->id,
-					});
-				}
-			});
-		}
-		const auto fullId = FullStoryId{
-			.peer = _reactionsStoryPeer->id,
-			.story = _reactionsStoryId,
-		};
-		if (const auto story = lookup(fullId)) {
-			(*story)->applyChannelReactionsSlice(_reactionsOffset, slice);
-		}
-		if (const auto done = base::take(_reactionsDone)) {
-			done(std::move(slice));
-		}
-	}).fail([=] {
-		_reactionsRequestId = 0;
-		if (const auto done = base::take(_reactionsDone)) {
-			done({});
-		}
-	}).send();
+					const auto &data = result.data();
+					auto slice = StoryViews{
+						.nextOffset = data.vnext_offset().value_or_empty(),
+						.reactions = data.vcount().v,
+						.total = data.vcount().v,
+					};
+					_owner->processUsers(data.vusers());
+					_owner->processChats(data.vchats());
+					slice.list.reserve(data.vreactions().v.size());
+					for (const auto &reaction : data.vreactions().v) {
+						reaction.match(
+							[&](const MTPDstoryReaction &data)
+							{
+								slice.list.push_back({
+									.peer = _owner->peer(peerFromMTP(data.vpeer_id())),
+									.reaction = ReactionFromMTP(data.vreaction()),
+									.date = data.vdate().v,
+								});
+							},
+							[&](const MTPDstoryReactionPublicRepost &data)
+							{
+								const auto story = applySingle(peerFromMTP(data.vpeer_id()), data.vstory());
+								if (story) {
+									slice.list.push_back({
+										.peer = story->peer(),
+										.repostId = story->id(),
+									});
+								}
+							},
+							[&](const MTPDstoryReactionPublicForward &data)
+							{
+								const auto item = _owner->addNewMessage(data.vmessage(), {}, NewMessageType::Existing);
+								if (item) {
+									slice.list.push_back({
+										.peer = item->history()->peer,
+										.forwardId = item->id,
+									});
+								}
+							});
+					}
+					const auto fullId = FullStoryId{
+						.peer = _reactionsStoryPeer->id,
+						.story = _reactionsStoryId,
+					};
+					if (const auto story = lookup(fullId)) {
+						(*story)->applyChannelReactionsSlice(_reactionsOffset, slice);
+					}
+					if (const auto done = base::take(_reactionsDone)) {
+						done(std::move(slice));
+					}
+				})
+			.fail(
+				[=]
+				{
+					_reactionsRequestId = 0;
+					if (const auto done = base::take(_reactionsDone)) {
+						done({});
+					}
+				})
+			.send();
 }
 
 void Stories::sendViewsSliceRequest() {
@@ -1493,75 +1407,81 @@ void Stories::sendViewsSliceRequest() {
 	using Flag = MTPstories_GetStoryViewsList::Flag;
 	const auto api = &_owner->session().api();
 	_owner->session().api().request(_viewsRequestId).cancel();
-	_viewsRequestId = api->request(MTPstories_GetStoryViewsList(
-		MTP_flags(Flag::f_reactions_first),
-		_viewsStoryPeer->input,
-		MTPstring(), // q
-		MTP_int(_viewsStoryId),
-		MTP_string(_viewsOffset),
-		MTP_int(_viewsDone ? kViewsPerPage : kPollingViewsPerPage)
-	)).done([=](const MTPstories_StoryViewsList &result) {
-		_viewsRequestId = 0;
+	_viewsRequestId =
+		api->request(MTPstories_GetStoryViewsList(MTP_flags(Flag::f_reactions_first),
+												  _viewsStoryPeer->input,
+												  MTPstring(), // q
+												  MTP_int(_viewsStoryId),
+												  MTP_string(_viewsOffset),
+												  MTP_int(_viewsDone ? kViewsPerPage : kPollingViewsPerPage)))
+			.done(
+				[=](const MTPstories_StoryViewsList &result)
+				{
+					_viewsRequestId = 0;
 
-		const auto &data = result.data();
-		auto slice = StoryViews{
-			.nextOffset = data.vnext_offset().value_or_empty(),
-			.reactions = data.vreactions_count().v,
-			.forwards = data.vforwards_count().v,
-			.views = data.vviews_count().v,
-			.total = data.vcount().v,
-		};
-		_owner->processUsers(data.vusers());
-		_owner->processChats(data.vchats());
-		slice.list.reserve(data.vviews().v.size());
-		for (const auto &view : data.vviews().v) {
-			view.match([&](const MTPDstoryView &data) {
-				slice.list.push_back({
-					.peer = _owner->peer(peerFromUser(data.vuser_id())),
-					.reaction = (data.vreaction()
-						? ReactionFromMTP(*data.vreaction())
-						: Data::ReactionId()),
-					.date = data.vdate().v,
-				});
-			}, [&](const MTPDstoryViewPublicRepost &data) {
-				const auto story = applySingle(
-					peerFromMTP(data.vpeer_id()),
-					data.vstory());
-				if (story) {
-					slice.list.push_back({
-						.peer = story->peer(),
-						.repostId = story->id(),
-					});
-				}
-			}, [&](const MTPDstoryViewPublicForward &data) {
-				const auto item = _owner->addNewMessage(
-					data.vmessage(),
-					{},
-					NewMessageType::Existing);
-				if (item) {
-					slice.list.push_back({
-						.peer = item->history()->peer,
-						.forwardId = item->id,
-					});
-				}
-			});
-		}
-		const auto fullId = FullStoryId{
-			.peer = _owner->session().userPeerId(),
-			.story = _viewsStoryId,
-		};
-		if (const auto story = lookup(fullId)) {
-			(*story)->applyViewsSlice(_viewsOffset, slice);
-		}
-		if (const auto done = base::take(_viewsDone)) {
-			done(std::move(slice));
-		}
-	}).fail([=] {
-		_viewsRequestId = 0;
-		if (const auto done = base::take(_viewsDone)) {
-			done({});
-		}
-	}).send();
+					const auto &data = result.data();
+					auto slice = StoryViews{
+						.nextOffset = data.vnext_offset().value_or_empty(),
+						.reactions = data.vreactions_count().v,
+						.forwards = data.vforwards_count().v,
+						.views = data.vviews_count().v,
+						.total = data.vcount().v,
+					};
+					_owner->processUsers(data.vusers());
+					_owner->processChats(data.vchats());
+					slice.list.reserve(data.vviews().v.size());
+					for (const auto &view : data.vviews().v) {
+						view.match(
+							[&](const MTPDstoryView &data)
+							{
+								slice.list.push_back({
+									.peer = _owner->peer(peerFromUser(data.vuser_id())),
+									.reaction =
+										(data.vreaction() ? ReactionFromMTP(*data.vreaction()) : Data::ReactionId()),
+									.date = data.vdate().v,
+								});
+							},
+							[&](const MTPDstoryViewPublicRepost &data)
+							{
+								const auto story = applySingle(peerFromMTP(data.vpeer_id()), data.vstory());
+								if (story) {
+									slice.list.push_back({
+										.peer = story->peer(),
+										.repostId = story->id(),
+									});
+								}
+							},
+							[&](const MTPDstoryViewPublicForward &data)
+							{
+								const auto item = _owner->addNewMessage(data.vmessage(), {}, NewMessageType::Existing);
+								if (item) {
+									slice.list.push_back({
+										.peer = item->history()->peer,
+										.forwardId = item->id,
+									});
+								}
+							});
+					}
+					const auto fullId = FullStoryId{
+						.peer = _owner->session().userPeerId(),
+						.story = _viewsStoryId,
+					};
+					if (const auto story = lookup(fullId)) {
+						(*story)->applyViewsSlice(_viewsOffset, slice);
+					}
+					if (const auto done = base::take(_viewsDone)) {
+						done(std::move(slice));
+					}
+				})
+			.fail(
+				[=]
+				{
+					_viewsRequestId = 0;
+					if (const auto done = base::take(_viewsDone)) {
+						done({});
+					}
+				})
+			.send();
 }
 
 void Stories::sendViewsCountsRequest() {
@@ -1570,29 +1490,30 @@ void Stories::sendViewsCountsRequest() {
 
 	const auto api = &_owner->session().api();
 	_owner->session().api().request(_viewsRequestId).cancel();
-	_viewsRequestId = api->request(MTPstories_GetStoriesViews(
-		_viewsStoryPeer->input,
-		MTP_vector<MTPint>(1, MTP_int(_viewsStoryId))
-	)).done([=](const MTPstories_StoryViews &result) {
-		_viewsRequestId = 0;
+	_viewsRequestId =
+		api->request(MTPstories_GetStoriesViews(_viewsStoryPeer->input, MTP_vector<MTPint>(1, MTP_int(_viewsStoryId))))
+			.done(
+				[=](const MTPstories_StoryViews &result)
+				{
+					_viewsRequestId = 0;
 
-		const auto &data = result.data();
-		_owner->processUsers(data.vusers());
-		if (data.vviews().v.size() == 1) {
-			const auto fullId = FullStoryId{
-				_viewsStoryPeer->id,
-				_viewsStoryId,
-			};
-			if (const auto story = lookup(fullId)) {
-				(*story)->applyViewsCounts(data.vviews().v.front().data());
-			}
-		}
-	}).fail([=] {
-		_viewsRequestId = 0;
-	}).send();
+					const auto &data = result.data();
+					_owner->processUsers(data.vusers());
+					if (data.vviews().v.size() == 1) {
+						const auto fullId = FullStoryId{
+							_viewsStoryPeer->id,
+							_viewsStoryId,
+						};
+						if (const auto story = lookup(fullId)) {
+							(*story)->applyViewsCounts(data.vviews().v.front().data());
+						}
+					}
+				})
+			.fail([=] { _viewsRequestId = 0; })
+			.send();
 }
 
-bool Stories::hasArchive(not_null<PeerData*> peer) const {
+bool Stories::hasArchive(not_null<PeerData *> peer) const {
 	if (peer->isSelf()) {
 		return true;
 	} else if (const auto channel = peer->asChannel()) {
@@ -1607,9 +1528,7 @@ const StoriesIds &Stories::archive(PeerId peerId) const {
 	return (i != end(_archive)) ? i->second.ids : empty;
 }
 
-rpl::producer<PeerId> Stories::archiveChanged() const {
-	return _archiveChanged.events();
-}
+rpl::producer<PeerId> Stories::archiveChanged() const { return _archiveChanged.events(); }
 
 int Stories::archiveCount(PeerId peerId) const {
 	const auto i = _archive.find(peerId);
@@ -1632,9 +1551,7 @@ const StoriesIds &Stories::saved(PeerId peerId) const {
 	return (i != end(_saved)) ? i->second.ids : empty;
 }
 
-rpl::producer<PeerId> Stories::savedChanged() const {
-	return _savedChanged.events();
-}
+rpl::producer<PeerId> Stories::savedChanged() const { return _savedChanged.events(); }
 
 int Stories::savedCount(PeerId peerId) const {
 	const auto i = _saved.find(peerId);
@@ -1658,47 +1575,51 @@ void Stories::archiveLoadMore(PeerId peerId) {
 		return;
 	}
 	const auto api = &_owner->session().api();
-	archive->requestId = api->request(MTPstories_GetStoriesArchive(
-		peer->input,
-		MTP_int(archive->lastId),
-		MTP_int(archive->lastId ? kArchivePerPage : kArchiveFirstPerPage)
-	)).done([=](const MTPstories_Stories &result) {
-		const auto archive = lookupArchive(peer);
-		if (!archive) {
-			return;
-		}
-		archive->requestId = 0;
+	archive->requestId =
+		api->request(MTPstories_GetStoriesArchive(peer->input,
+												  MTP_int(archive->lastId),
+												  MTP_int(archive->lastId ? kArchivePerPage : kArchiveFirstPerPage)))
+			.done(
+				[=](const MTPstories_Stories &result)
+				{
+					const auto archive = lookupArchive(peer);
+					if (!archive) {
+						return;
+					}
+					archive->requestId = 0;
 
-		const auto &data = result.data();
-		const auto now = base::unixtime::now();
-		archive->total = data.vcount().v;
-		for (const auto &story : data.vstories().v) {
-			const auto id = story.match([&](const auto &id) {
-				return id.vid().v;
-			});
-			archive->ids.list.emplace(id);
-			archive->lastId = id;
-			if (!parseAndApply(peer, story, now)) {
-				archive->ids.list.remove(id);
-				if (archive->total > 0) {
-					--archive->total;
-				}
-			}
-		}
-		const auto ids = int(archive->ids.list.size());
-		archive->loaded = data.vstories().v.empty();
-		archive->total = archive->loaded ? ids : std::max(archive->total, ids);
-		_archiveChanged.fire_copy(peerId);
-	}).fail([=] {
-		const auto archive = lookupArchive(peer);
-		if (!archive) {
-			return;
-		}
-		archive->requestId = 0;
-		archive->loaded = true;
-		archive->total = int(archive->ids.list.size());
-		_archiveChanged.fire_copy(peerId);
-	}).send();
+					const auto &data = result.data();
+					const auto now = base::unixtime::now();
+					archive->total = data.vcount().v;
+					for (const auto &story : data.vstories().v) {
+						const auto id = story.match([&](const auto &id) { return id.vid().v; });
+						archive->ids.list.emplace(id);
+						archive->lastId = id;
+						if (!parseAndApply(peer, story, now)) {
+							archive->ids.list.remove(id);
+							if (archive->total > 0) {
+								--archive->total;
+							}
+						}
+					}
+					const auto ids = int(archive->ids.list.size());
+					archive->loaded = data.vstories().v.empty();
+					archive->total = archive->loaded ? ids : std::max(archive->total, ids);
+					_archiveChanged.fire_copy(peerId);
+				})
+			.fail(
+				[=]
+				{
+					const auto archive = lookupArchive(peer);
+					if (!archive) {
+						return;
+					}
+					archive->requestId = 0;
+					archive->loaded = true;
+					archive->total = int(archive->ids.list.size());
+					_archiveChanged.fire_copy(peerId);
+				})
+			.send();
 }
 
 void Stories::savedLoadMore(PeerId peerId) {
@@ -1708,51 +1629,51 @@ void Stories::savedLoadMore(PeerId peerId) {
 	}
 	const auto api = &_owner->session().api();
 	const auto peer = _owner->peer(peerId);
-	saved.requestId = api->request(MTPstories_GetPinnedStories(
-		peer->input,
-		MTP_int(saved.lastId),
-		MTP_int(saved.lastId ? kSavedPerPage : kSavedFirstPerPage)
-	)).done([=](const MTPstories_Stories &result) {
-		auto &saved = _saved[peerId];
-		saved.requestId = 0;
+	saved.requestId =
+		api->request(MTPstories_GetPinnedStories(peer->input,
+												 MTP_int(saved.lastId),
+												 MTP_int(saved.lastId ? kSavedPerPage : kSavedFirstPerPage)))
+			.done(
+				[=](const MTPstories_Stories &result)
+				{
+					auto &saved = _saved[peerId];
+					saved.requestId = 0;
 
-		const auto &data = result.data();
-		const auto now = base::unixtime::now();
-		auto pinnedToTopIds = data.vpinned_to_top().value_or_empty();
-		auto pinnedToTop = pinnedToTopIds
-			| ranges::views::transform(&MTPint::v)
-			| ranges::to_vector;
-		saved.total = data.vcount().v;
-		for (const auto &story : data.vstories().v) {
-			const auto id = story.match([&](const auto &id) {
-				return id.vid().v;
-			});
-			saved.ids.list.emplace(id);
-			saved.lastId = id;
-			if (!parseAndApply(peer, story, now)) {
-				saved.ids.list.remove(id);
-				if (saved.total > 0) {
-					--saved.total;
-				}
-			}
-		}
-		const auto ids = int(saved.ids.list.size());
-		saved.loaded = data.vstories().v.empty();
-		saved.total = saved.loaded ? ids : std::max(saved.total, ids);
-		setPinnedToTop(peerId, std::move(pinnedToTop));
-		_savedChanged.fire_copy(peerId);
-	}).fail([=] {
-		auto &saved = _saved[peerId];
-		saved.requestId = 0;
-		saved.loaded = true;
-		saved.total = int(saved.ids.list.size());
-		_savedChanged.fire_copy(peerId);
-	}).send();
+					const auto &data = result.data();
+					const auto now = base::unixtime::now();
+					auto pinnedToTopIds = data.vpinned_to_top().value_or_empty();
+					auto pinnedToTop = pinnedToTopIds | ranges::views::transform(&MTPint::v) | ranges::to_vector;
+					saved.total = data.vcount().v;
+					for (const auto &story : data.vstories().v) {
+						const auto id = story.match([&](const auto &id) { return id.vid().v; });
+						saved.ids.list.emplace(id);
+						saved.lastId = id;
+						if (!parseAndApply(peer, story, now)) {
+							saved.ids.list.remove(id);
+							if (saved.total > 0) {
+								--saved.total;
+							}
+						}
+					}
+					const auto ids = int(saved.ids.list.size());
+					saved.loaded = data.vstories().v.empty();
+					saved.total = saved.loaded ? ids : std::max(saved.total, ids);
+					setPinnedToTop(peerId, std::move(pinnedToTop));
+					_savedChanged.fire_copy(peerId);
+				})
+			.fail(
+				[=]
+				{
+					auto &saved = _saved[peerId];
+					saved.requestId = 0;
+					saved.loaded = true;
+					saved.total = int(saved.ids.list.size());
+					_savedChanged.fire_copy(peerId);
+				})
+			.send();
 }
 
-void Stories::setPinnedToTop(
-		PeerId peerId,
-		std::vector<StoryId> &&pinnedToTop) {
+void Stories::setPinnedToTop(PeerId peerId, std::vector<StoryId> &&pinnedToTop) {
 	const auto i = _saved.find(peerId);
 	if (i == end(_saved) && pinnedToTop.empty()) {
 		return;
@@ -1761,14 +1682,14 @@ void Stories::setPinnedToTop(
 	if (saved.ids.pinnedToTop != pinnedToTop) {
 		for (const auto id : saved.ids.pinnedToTop) {
 			if (!ranges::contains(pinnedToTop, id)) {
-				if (const auto maybeStory = lookup({ peerId, id })) {
+				if (const auto maybeStory = lookup({peerId, id})) {
 					(*maybeStory)->setPinnedToTop(false);
 				}
 			}
 		}
 		for (const auto id : pinnedToTop) {
 			if (!ranges::contains(saved.ids.pinnedToTop, id)) {
-				if (const auto maybeStory = lookup({ peerId, id })) {
+				if (const auto maybeStory = lookup({peerId, id})) {
 					(*maybeStory)->setPinnedToTop(true);
 				}
 			}
@@ -1790,19 +1711,18 @@ void Stories::deleteList(const std::vector<FullStoryId> &ids) {
 		}
 	}
 	const auto api = &_owner->session().api();
-	api->request(MTPstories_DeleteStories(
-		peer->input,
-		MTP_vector<MTPint>(list)
-	)).done([=](const MTPVector<MTPint> &result) {
-		for (const auto &id : result.v) {
-			applyDeleted(peer, id.v);
-		}
-	}).send();
+	api->request(MTPstories_DeleteStories(peer->input, MTP_vector<MTPint>(list)))
+		.done(
+			[=](const MTPVector<MTPint> &result)
+			{
+				for (const auto &id : result.v) {
+					applyDeleted(peer, id.v);
+				}
+			})
+		.send();
 }
 
-void Stories::toggleInProfileList(
-		const std::vector<FullStoryId> &ids,
-		bool inProfile) {
+void Stories::toggleInProfileList(const std::vector<FullStoryId> &ids, bool inProfile) {
 	if (ids.empty()) {
 		return;
 	}
@@ -1818,55 +1738,51 @@ void Stories::toggleInProfileList(
 		return;
 	}
 	const auto api = &_owner->session().api();
-	api->request(MTPstories_TogglePinned(
-		peer->input,
-		MTP_vector<MTPint>(list),
-		MTP_bool(inProfile)
-	)).done([=](const MTPVector<MTPint> &result) {
-		const auto peerId = peer->id;
-		auto &saved = _saved[peerId];
-		const auto loaded = saved.loaded;
-		const auto lastId = !saved.ids.list.empty()
-			? saved.ids.list.back()
-			: saved.lastId
-			? saved.lastId
-			: std::numeric_limits<StoryId>::max();
-		auto dirty = false;
-		for (const auto &id : result.v) {
-			if (const auto maybeStory = lookup({ peerId, id.v })) {
-				const auto story = *maybeStory;
-				story->setInProfile(inProfile);
-				if (inProfile) {
-					const auto add = loaded || (id.v >= lastId);
-					if (!add) {
-						dirty = true;
-					} else if (saved.ids.list.emplace(id.v).second) {
-						if (saved.total >= 0) {
-							++saved.total;
+	api->request(MTPstories_TogglePinned(peer->input, MTP_vector<MTPint>(list), MTP_bool(inProfile)))
+		.done(
+			[=](const MTPVector<MTPint> &result)
+			{
+				const auto peerId = peer->id;
+				auto &saved = _saved[peerId];
+				const auto loaded = saved.loaded;
+				const auto lastId = !saved.ids.list.empty() ? saved.ids.list.back()
+					: saved.lastId							? saved.lastId
+															: std::numeric_limits<StoryId>::max();
+				auto dirty = false;
+				for (const auto &id : result.v) {
+					if (const auto maybeStory = lookup({peerId, id.v})) {
+						const auto story = *maybeStory;
+						story->setInProfile(inProfile);
+						if (inProfile) {
+							const auto add = loaded || (id.v >= lastId);
+							if (!add) {
+								dirty = true;
+							} else if (saved.ids.list.emplace(id.v).second) {
+								if (saved.total >= 0) {
+									++saved.total;
+								}
+							}
+						} else if (saved.ids.list.remove(id.v)) {
+							if (saved.total > 0) {
+								--saved.total;
+							}
+						} else if (!loaded) {
+							dirty = true;
 						}
+					} else if (!loaded) {
+						dirty = true;
 					}
-				} else if (saved.ids.list.remove(id.v)) {
-					if (saved.total > 0) {
-						--saved.total;
-					}
-				} else if (!loaded) {
-					dirty = true;
 				}
-			} else if (!loaded) {
-				dirty = true;
-			}
-		}
-		if (dirty) {
-			savedLoadMore(peerId);
-		} else {
-			_savedChanged.fire_copy(peerId);
-		}
-	}).send();
+				if (dirty) {
+					savedLoadMore(peerId);
+				} else {
+					_savedChanged.fire_copy(peerId);
+				}
+			})
+		.send();
 }
 
-bool Stories::canTogglePinnedList(
-		const std::vector<FullStoryId> &ids,
-		bool pin) const {
+bool Stories::canTogglePinnedList(const std::vector<FullStoryId> &ids, bool pin) const {
 	Expects(!ids.empty());
 
 	if (!pin) {
@@ -1894,9 +1810,7 @@ int Stories::maxPinnedCount() const {
 	return appConfig->get<int>(u"stories_pinned_to_top_count_max"_q, 3);
 }
 
-void Stories::togglePinnedList(
-		const std::vector<FullStoryId> &ids,
-		bool pin) {
+void Stories::togglePinnedList(const std::vector<FullStoryId> &ids, bool pin) {
 	if (ids.empty()) {
 		return;
 	}
@@ -1905,7 +1819,7 @@ void Stories::togglePinnedList(
 	auto list = QVector<MTPint>();
 	list.reserve(maxPinnedCount());
 	for (const auto &id : saved.ids.pinnedToTop) {
-		if (pin || !ranges::contains(ids, FullStoryId{ peerId, id })) {
+		if (pin || !ranges::contains(ids, FullStoryId{peerId, id})) {
 			list.push_back(MTP_int(id));
 		}
 	}
@@ -1913,24 +1827,21 @@ void Stories::togglePinnedList(
 		auto copy = ids;
 		ranges::sort(copy, ranges::greater());
 		for (const auto &id : copy) {
-			if (id.peer == peerId
-				&& !ranges::contains(saved.ids.pinnedToTop, id.story)) {
+			if (id.peer == peerId && !ranges::contains(saved.ids.pinnedToTop, id.story)) {
 				list.push_back(MTP_int(id.story));
 			}
 		}
 	}
 	const auto api = &_owner->session().api();
 	const auto peer = session().data().peer(peerId);
-	api->request(MTPstories_TogglePinnedToTop(
-		peer->input,
-		MTP_vector<MTPint>(list)
-	)).done([=] {
-		setPinnedToTop(peerId, list
-			| ranges::views::transform(&MTPint::v)
-			| ranges::to_vector);
-		_savedChanged.fire_copy(peerId);
-	}).send();
-
+	api->request(MTPstories_TogglePinnedToTop(peer->input, MTP_vector<MTPint>(list)))
+		.done(
+			[=]
+			{
+				setPinnedToTop(peerId, list | ranges::views::transform(&MTPint::v) | ranges::to_vector);
+				_savedChanged.fire_copy(peerId);
+			})
+		.send();
 }
 
 bool Stories::isQuitPrevent() {
@@ -1952,8 +1863,7 @@ bool Stories::isQuitPrevent() {
 void Stories::incrementPreloadingMainSources() {
 	Expects(_preloadingMainSourcesCounter >= 0);
 
-	if (++_preloadingMainSourcesCounter == 1
-		&& rebuildPreloadSources(StorySourcesList::NotHidden)) {
+	if (++_preloadingMainSourcesCounter == 1 && rebuildPreloadSources(StorySourcesList::NotHidden)) {
 		continuePreloading();
 	}
 }
@@ -1961,8 +1871,7 @@ void Stories::incrementPreloadingMainSources() {
 void Stories::decrementPreloadingMainSources() {
 	Expects(_preloadingMainSourcesCounter > 0);
 
-	if (!--_preloadingMainSourcesCounter
-		&& rebuildPreloadSources(StorySourcesList::NotHidden)) {
+	if (!--_preloadingMainSourcesCounter && rebuildPreloadSources(StorySourcesList::NotHidden)) {
 		continuePreloading();
 	}
 }
@@ -1970,8 +1879,7 @@ void Stories::decrementPreloadingMainSources() {
 void Stories::incrementPreloadingHiddenSources() {
 	Expects(_preloadingHiddenSourcesCounter >= 0);
 
-	if (++_preloadingHiddenSourcesCounter == 1
-		&& rebuildPreloadSources(StorySourcesList::Hidden)) {
+	if (++_preloadingHiddenSourcesCounter == 1 && rebuildPreloadSources(StorySourcesList::Hidden)) {
 		continuePreloading();
 	}
 }
@@ -1979,32 +1887,25 @@ void Stories::incrementPreloadingHiddenSources() {
 void Stories::decrementPreloadingHiddenSources() {
 	Expects(_preloadingHiddenSourcesCounter > 0);
 
-	if (!--_preloadingHiddenSourcesCounter
-		&& rebuildPreloadSources(StorySourcesList::Hidden)) {
+	if (!--_preloadingHiddenSourcesCounter && rebuildPreloadSources(StorySourcesList::Hidden)) {
 		continuePreloading();
 	}
 }
 
 void Stories::setPreloadingInViewer(std::vector<FullStoryId> ids) {
-	ids.erase(ranges::remove_if(ids, [&](FullStoryId id) {
-		return _preloaded.contains(id);
-	}), end(ids));
+	ids.erase(ranges::remove_if(ids, [&](FullStoryId id) { return _preloaded.contains(id); }), end(ids));
 	if (_toPreloadViewer != ids) {
 		_toPreloadViewer = std::move(ids);
 		continuePreloading();
 	}
 }
 
-std::optional<Stories::PeerSourceState> Stories::peerSourceState(
-		not_null<PeerData*> peer,
-		StoryId storyMaxId) {
+std::optional<Stories::PeerSourceState> Stories::peerSourceState(not_null<PeerData *> peer, StoryId storyMaxId) {
 	const auto i = _readTill.find(peer->id);
 	if (_readTillReceived || (i != end(_readTill))) {
 		return PeerSourceState{
 			.maxId = storyMaxId,
-			.readTill = std::min(
-				storyMaxId,
-				(i != end(_readTill)) ? i->second : 0),
+			.readTill = std::min(storyMaxId, (i != end(_readTill)) ? i->second : 0),
 		};
 	}
 	requestReadTills();
@@ -2017,20 +1918,23 @@ void Stories::requestReadTills() {
 		return;
 	}
 	const auto api = &_owner->session().api();
-	_readTillsRequestId = api->request(MTPstories_GetAllReadPeerStories(
-	)).done([=](const MTPUpdates &result) {
-		_readTillReceived = true;
-		api->applyUpdates(result);
-		for (auto &[peer, maxId] : base::take(_pendingPeerStateMaxId)) {
-			updatePeerStoriesState(peer);
-		}
-		for (const auto &storyId : base::take(_pendingReadTillItems)) {
-			_owner->refreshStoryItemViews(storyId);
-		}
-	}).send();
+	_readTillsRequestId = api->request(MTPstories_GetAllReadPeerStories())
+							  .done(
+								  [=](const MTPUpdates &result)
+								  {
+									  _readTillReceived = true;
+									  api->applyUpdates(result);
+									  for (auto &[peer, maxId] : base::take(_pendingPeerStateMaxId)) {
+										  updatePeerStoriesState(peer);
+									  }
+									  for (const auto &storyId : base::take(_pendingReadTillItems)) {
+										  _owner->refreshStoryItemViews(storyId);
+									  }
+								  })
+							  .send();
 }
 
-bool Stories::isUnread(not_null<Story*> story) {
+bool Stories::isUnread(not_null<Story *> story) {
 	const auto till = _readTill.find(story->peer()->id);
 	if (till == end(_readTill) && !_readTillReceived) {
 		requestReadTills();
@@ -2041,39 +1945,38 @@ bool Stories::isUnread(not_null<Story*> story) {
 	return (story->id() > readTill);
 }
 
-void Stories::registerPolling(not_null<Story*> story, Polling polling) {
+void Stories::registerPolling(not_null<Story *> story, Polling polling) {
 	auto &settings = _pollingSettings[story];
 	switch (polling) {
-	case Polling::Chat: ++settings.chat; break;
-	case Polling::Viewer:
-		++settings.viewer;
-		if ((story->peer()->isSelf() || story->peer()->isChannel())
-			&& _pollingViews.emplace(story).second) {
-			sendPollingViewsRequests();
-		}
-		break;
+		case Polling::Chat: ++settings.chat; break;
+		case Polling::Viewer:
+			++settings.viewer;
+			if ((story->peer()->isSelf() || story->peer()->isChannel()) && _pollingViews.emplace(story).second) {
+				sendPollingViewsRequests();
+			}
+			break;
 	}
 	maybeSchedulePolling(story, settings, base::unixtime::now());
 }
 
-void Stories::unregisterPolling(not_null<Story*> story, Polling polling) {
+void Stories::unregisterPolling(not_null<Story *> story, Polling polling) {
 	const auto i = _pollingSettings.find(story);
 	Assert(i != end(_pollingSettings));
 
 	switch (polling) {
-	case Polling::Chat:
-		Assert(i->second.chat > 0);
-		--i->second.chat;
-		break;
-	case Polling::Viewer:
-		Assert(i->second.viewer > 0);
-		if (!--i->second.viewer) {
-			_pollingViews.remove(story);
-			if (_pollingViews.empty()) {
-				_pollingViewsTimer.cancel();
+		case Polling::Chat:
+			Assert(i->second.chat > 0);
+			--i->second.chat;
+			break;
+		case Polling::Viewer:
+			Assert(i->second.viewer > 0);
+			if (!--i->second.viewer) {
+				_pollingViews.remove(story);
+				if (_pollingViews.empty()) {
+					_pollingViewsTimer.cancel();
+				}
 			}
-		}
-		break;
+			break;
 	}
 	if (!i->second.chat && !i->second.viewer) {
 		_pollingSettings.erase(i);
@@ -2091,8 +1994,7 @@ bool Stories::registerPolling(FullStoryId id, Polling polling) {
 void Stories::unregisterPolling(FullStoryId id, Polling polling) {
 	if (const auto maybeStory = lookup(id)) {
 		unregisterPolling(*maybeStory, polling);
-	} else if (const auto i = _deletingStories.find(id)
-		; i != end(_deletingStories)) {
+	} else if (const auto i = _deletingStories.find(id); i != end(_deletingStories)) {
 		unregisterPolling(i->second.get(), polling);
 	} else {
 		Unexpected("Couldn't find story for unregistering polling.");
@@ -2103,10 +2005,7 @@ int Stories::pollingInterval(const PollingSettings &settings) const {
 	return settings.viewer ? kPollingIntervalViewer : kPollingIntervalChat;
 }
 
-void Stories::maybeSchedulePolling(
-		not_null<Story*> story,
-		const PollingSettings &settings,
-		TimeId now) {
+void Stories::maybeSchedulePolling(not_null<Story *> story, const PollingSettings &settings, TimeId now) {
 	const auto last = story->lastUpdateTime();
 	const auto next = last + pollingInterval(settings);
 	const auto left = std::max(next - now, 0) * crl::time(1000) + 1;
@@ -2146,22 +2045,19 @@ void Stories::sendPollingViewsRequests() {
 	_pollingViewsTimer.callOnce(kPollViewsInterval);
 }
 
-void Stories::updatePeerStoriesState(not_null<PeerData*> peer) {
+void Stories::updatePeerStoriesState(not_null<PeerData *> peer) {
 	const auto till = _readTill.find(peer->id);
 	const auto readTill = (till != end(_readTill)) ? till->second : 0;
-	const auto pendingMaxId = [&] {
+	const auto pendingMaxId = [&]
+	{
 		const auto j = _pendingPeerStateMaxId.find(peer);
 		return (j != end(_pendingPeerStateMaxId)) ? j->second : 0;
 	};
 	const auto i = _all.find(peer->id);
-	const auto max = (i != end(_all))
-		? (i->second.ids.empty() ? 0 : i->second.ids.back().id)
-		: pendingMaxId();
-	peer->setStoriesState(!max
-		? PeerData::StoriesState::None
-		: (max <= readTill)
-		? PeerData::StoriesState::HasRead
-		: PeerData::StoriesState::HasUnread);
+	const auto max = (i != end(_all)) ? (i->second.ids.empty() ? 0 : i->second.ids.back().id) : pendingMaxId();
+	peer->setStoriesState(!max					  ? PeerData::StoriesState::None
+							  : (max <= readTill) ? PeerData::StoriesState::HasRead
+												  : PeerData::StoriesState::HasUnread);
 }
 
 void Stories::preloadSourcesChanged(StorySourcesList list) {
@@ -2172,9 +2068,8 @@ void Stories::preloadSourcesChanged(StorySourcesList list) {
 
 bool Stories::rebuildPreloadSources(StorySourcesList list) {
 	const auto index = static_cast<int>(list);
-	const auto &counter = (list == StorySourcesList::Hidden)
-		? _preloadingHiddenSourcesCounter
-		: _preloadingMainSourcesCounter;
+	const auto &counter =
+		(list == StorySourcesList::Hidden) ? _preloadingHiddenSourcesCounter : _preloadingMainSourcesCounter;
 	if (!counter) {
 		return !base::take(_toPreloadSources[index]).empty();
 	}
@@ -2184,7 +2079,7 @@ bool Stories::rebuildPreloadSources(StorySourcesList list) {
 		const auto i = _all.find(source.id);
 		if (i != end(_all)) {
 			if (const auto id = i->second.toOpen().id) {
-				const auto fullId = FullStoryId{ source.id, id };
+				const auto fullId = FullStoryId{source.id, id};
 				if (!_preloaded.contains(fullId)) {
 					now.push_back(fullId);
 				}
@@ -2218,37 +2113,35 @@ void Stories::continuePreloading() {
 }
 
 bool Stories::shouldContinuePreload(FullStoryId id) const {
-	const auto first = ranges::views::concat(
-		_toPreloadViewer,
-		_toPreloadSources[static_cast<int>(StorySourcesList::Hidden)],
-		_toPreloadSources[static_cast<int>(StorySourcesList::NotHidden)]
-	) | ranges::views::take(kStillPreloadFromFirst);
+	const auto first = ranges::views::concat(_toPreloadViewer,
+											 _toPreloadSources[static_cast<int>(StorySourcesList::Hidden)],
+											 _toPreloadSources[static_cast<int>(StorySourcesList::NotHidden)]) |
+		ranges::views::take(kStillPreloadFromFirst);
 	return ranges::contains(first, id);
 }
 
 FullStoryId Stories::nextPreloadId() const {
 	const auto hidden = static_cast<int>(StorySourcesList::Hidden);
 	const auto main = static_cast<int>(StorySourcesList::NotHidden);
-	const auto result = !_toPreloadViewer.empty()
-		? _toPreloadViewer.front()
-		: !_toPreloadSources[hidden].empty()
-		? _toPreloadSources[hidden].front()
-		: !_toPreloadSources[main].empty()
-		? _toPreloadSources[main].front()
-		: FullStoryId();
+	const auto result = !_toPreloadViewer.empty() ? _toPreloadViewer.front()
+		: !_toPreloadSources[hidden].empty()	  ? _toPreloadSources[hidden].front()
+		: !_toPreloadSources[main].empty()		  ? _toPreloadSources[main].front()
+												  : FullStoryId();
 
 	Ensures(!_preloaded.contains(result));
 	return result;
 }
 
-void Stories::startPreloading(not_null<Story*> story) {
+void Stories::startPreloading(not_null<Story *> story) {
 	Expects(!_preloaded.contains(story->fullId()));
 
 	const auto id = story->fullId();
-	auto preloading = std::make_unique<StoryPreload>(story, [=] {
-		_preloading = nullptr;
-		preloadFinished(id, true);
-	});
+	auto preloading = std::make_unique<StoryPreload>(story,
+													 [=]
+													 {
+														 _preloading = nullptr;
+														 preloadFinished(id, true);
+													 });
 	if (!_preloaded.contains(id)) {
 		_preloading = std::move(preloading);
 	}
@@ -2258,15 +2151,11 @@ void Stories::preloadFinished(FullStoryId id, bool markAsPreloaded) {
 	for (auto &sources : _toPreloadSources) {
 		sources.erase(ranges::remove(sources, id), end(sources));
 	}
-	_toPreloadViewer.erase(
-		ranges::remove(_toPreloadViewer, id),
-		end(_toPreloadViewer));
+	_toPreloadViewer.erase(ranges::remove(_toPreloadViewer, id), end(_toPreloadViewer));
 	if (markAsPreloaded) {
 		_preloaded.emplace(id);
 	}
-	crl::on_main(this, [=] {
-		continuePreloading();
-	});
+	crl::on_main(this, [=] { continuePreloading(); });
 }
 
 } // namespace Data

@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -17,34 +17,34 @@ using Callback = Fn<void(const QString &, UserData *)>;
 
 Main::Session *getSession(ID userId);
 void dispatchToMainThread(std::function<void()> callback, int delay = 0);
-ID getDialogIdFromPeer(not_null<PeerData*> peer);
+ID getDialogIdFromPeer(not_null<PeerData *> peer);
 
-ID getBareID(not_null<PeerData*> peer);
+ID getBareID(not_null<PeerData *> peer);
 
 bool isExteraPeer(ID peerId);
 bool isSupporterPeer(ID peerId);
 
-rpl::producer<Info::Profile::Badge::Content> ExteraBadgeTypeFromPeer(not_null<PeerData*> peer);
+rpl::producer<Info::Profile::Badge::Content> ExteraBadgeTypeFromPeer(not_null<PeerData *> peer);
 
-bool isMessageHidden(not_null<HistoryItem*> item);
+bool isMessageHidden(not_null<HistoryItem *> item);
 
-void MarkAsReadChatList(not_null<Dialogs::MainList*> list);
-void MarkAsReadThread(not_null<Data::Thread*> thread);
+void MarkAsReadChatList(not_null<Dialogs::MainList *> list);
+void MarkAsReadThread(not_null<Data::Thread *> thread);
 
-void readHistory(not_null<HistoryItem*> message);
+void readHistory(not_null<HistoryItem *> message);
 
 QString formatTTL(int time);
 QString formatDateTime(const QDateTime &date);
 
 QString getDCName(int dc);
 
-QString getMediaSize(not_null<HistoryItem*> message);
-QString getMediaMime(not_null<HistoryItem*> message);
-QString getMediaName(not_null<HistoryItem*> message);
-QString getMediaResolution(not_null<HistoryItem*> message);
-QString getMediaDC(not_null<HistoryItem*> message);
+QString getMediaSize(not_null<HistoryItem *> message);
+QString getMediaMime(not_null<HistoryItem *> message);
+QString getMediaName(not_null<HistoryItem *> message);
+QString getMediaResolution(not_null<HistoryItem *> message);
+QString getMediaDC(not_null<HistoryItem *> message);
 
-QString getPeerDC(not_null<PeerData*> peer);
+QString getPeerDC(not_null<PeerData *> peer);
 
 int getScheduleTime(int64 sumSize);
 

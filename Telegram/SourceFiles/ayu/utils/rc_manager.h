@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -43,9 +43,7 @@ public:
 		return _channels;
 	}
 
-	[[nodiscard]] const std::unordered_set<ID> &supporters() const {
-		return _supporters;
-	}
+	[[nodiscard]] const std::unordered_set<ID> &supporters() const { return _supporters; }
 
 private:
 	RCManager() = default;
@@ -65,9 +63,8 @@ private:
 	std::unordered_set<ID> _channels = {};
 	std::unordered_set<ID> _supporters = {};
 
-	QTimer* _timer = nullptr;
+	QTimer *_timer = nullptr;
 
 	std::unique_ptr<QNetworkAccessManager> _manager = nullptr;
 	QNetworkReply *_reply = nullptr;
-
 };

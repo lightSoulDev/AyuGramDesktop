@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -8,13 +8,13 @@
 
 #include "base/qthelp_url.h"
 
-#include "lang_auto.h"
-#include "mainwindow.h"
 #include "ayu/utils/telegram_helpers.h"
 #include "boxes/abstract_box.h"
 #include "core/application.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "lang_auto.h"
+#include "mainwindow.h"
 #include "ui/boxes/confirm_box.h"
 
 #include <QDesktopServices>
@@ -23,16 +23,11 @@
 
 namespace AyuUrlHandlers {
 
-bool ResolveUser(
-	Window::SessionController *controller,
-	const Match &match,
-	const QVariant &context) {
+bool ResolveUser(Window::SessionController *controller, const Match &match, const QVariant &context) {
 	if (!controller) {
 		return false;
 	}
-	const auto params = url_parse_params(
-		match->captured(1),
-		qthelp::UrlParamNameTransform::ToLower);
+	const auto params = url_parse_params(match->captured(1), qthelp::UrlParamNameTransform::ToLower);
 	const auto userId = params.value(qsl("id")).toLongLong();
 	if (!userId) {
 		return false;
@@ -43,28 +38,23 @@ bool ResolveUser(
 		return true;
 	}
 
-	searchById(
-		userId,
-		&controller->session(),
-		[=](const QString &title, UserData *data)
-		{
-			if (data) {
-				controller->showPeerInfo(data);
-				return;
-			}
+	searchById(userId,
+			   &controller->session(),
+			   [=](const QString &title, UserData *data)
+			   {
+				   if (data) {
+					   controller->showPeerInfo(data);
+					   return;
+				   }
 
-			Core::App().hideMediaView();
-			Ui::show(Ui::MakeInformBox(tr::ayu_UserNotFoundMessage()));
-		}
-	);
+				   Core::App().hideMediaView();
+				   Ui::show(Ui::MakeInformBox(tr::ayu_UserNotFoundMessage()));
+			   });
 
 	return true;
 }
 
-bool HandleAyu(
-	Window::SessionController *controller,
-	const Match &match,
-	const QVariant &context) {
+bool HandleAyu(Window::SessionController *controller, const Match &match, const QVariant &context) {
 	if (!controller) {
 		return false;
 	}
@@ -104,4 +94,4 @@ bool TryHandleSpotify(const QString &url) {
 	return false;
 }
 
-}
+} // namespace AyuUrlHandlers

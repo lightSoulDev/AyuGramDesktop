@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -6,10 +6,10 @@
 // Copyright @Radolyn, 2025
 #include "ayu_lang.h"
 
-#include "qjsondocument.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "lang/lang_instance.h"
+#include "qjsondocument.h"
 
 // hard-coded languages
 std::map<QString, QString> langMapping = {
@@ -28,9 +28,7 @@ void AyuLanguage::init() {
 	if (!instance) instance = new AyuLanguage;
 }
 
-AyuLanguage *AyuLanguage::currentInstance() {
-	return instance;
-}
+AyuLanguage *AyuLanguage::currentInstance() { return instance; }
 
 void AyuLanguage::fetchLanguage(const QString &id, const QString &baseId) {
 	auto finalLangPackId = langMapping.contains(id) ? langMapping[id] : id;
@@ -47,11 +45,11 @@ void AyuLanguage::fetchLanguage(const QString &id, const QString &baseId) {
 	// https://crowdin.com/project/ayugram/discussions/6
 	QUrl url;
 	if (!finalLangPackId.isEmpty() && !baseId.isEmpty() && !needFallback) {
-		url.setUrl(qsl("https://cdn.jsdelivr.net/gh/AyuGram/Languages@l10n_main/values/langs/%1/Shared.json").arg(
-			finalLangPackId));
+		url.setUrl(qsl("https://cdn.jsdelivr.net/gh/AyuGram/Languages@l10n_main/values/langs/%1/Shared.json")
+					   .arg(finalLangPackId));
 	} else {
-		url.setUrl(qsl("https://cdn.jsdelivr.net/gh/AyuGram/Languages@l10n_main/values/langs/%1/Shared.json").arg(
-			needFallback ? baseId : finalLangPackId));
+		url.setUrl(qsl("https://cdn.jsdelivr.net/gh/AyuGram/Languages@l10n_main/values/langs/%1/Shared.json")
+					   .arg(needFallback ? baseId : finalLangPackId));
 	}
 	_chkReply = networkManager.get(QNetworkRequest(url));
 	connect(_chkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(fetchError(QNetworkReply::NetworkError)));
@@ -66,7 +64,7 @@ void AyuLanguage::fetchFinished() {
 	auto statusCode = _chkReply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 
 	if (statusCode == 404 && !langPackId.isEmpty() && !langPackBaseId.isEmpty() && !needFallback) {
-		LOG(("AyuGram Language not found! Fallback to main language: %1...").arg(langPackBaseId));
+		LOG(("ViGram Language not found! Fallback to main language: %1...").arg(langPackBaseId));
 		needFallback = true;
 		_chkReply->disconnect();
 		fetchLanguage("", langPackBaseId);
@@ -92,12 +90,12 @@ void AyuLanguage::fetchError(QNetworkReply::NetworkError e) {
 		const auto id = Lang::GetInstance().id();
 
 		if (!id.isEmpty() && !baseId.isEmpty() && !needFallback) {
-			LOG(("AyuGram Language not found! Fallback to main language: %1...").arg(baseId));
+			LOG(("ViGram Language not found! Fallback to main language: %1...").arg(baseId));
 			needFallback = true;
 			_chkReply->disconnect();
 			fetchLanguage("", baseId);
 		} else {
-			LOG(("AyuGram Language not found!"));
+			LOG(("ViGram Language not found!"));
 			_chkReply = nullptr;
 		}
 	}

@@ -1916,15 +1916,15 @@ if (build_macstore)
     )
 else()
     if (CMAKE_GENERATOR STREQUAL Xcode)
-        set(bundle_identifier "one.ayugram.AyuGramDesktop$<$<CONFIG:Debug>:Debug>")
+        set(bundle_identifier "one.ayugram.ViGramDesktop$<$<CONFIG:Debug>:Debug>")
     else()
-        set(bundle_identifier "one.ayugram.AyuGramDesktop")
+        set(bundle_identifier "one.ayugram.ViGramDesktop")
     endif()
     set(bundle_entitlements "Telegram.entitlements")
     if (LINUX AND DESKTOP_APP_USE_PACKAGED)
         set(output_name "ayugram-desktop")
     else()
-        set(output_name "AyuGram")
+        set(output_name "ViGram")
     endif()
 endif()
 
@@ -1970,7 +1970,7 @@ PRIVATE
 if (APPLE
     OR "${CMAKE_GENERATOR}" STREQUAL "Ninja Multi-Config"
     OR NOT CMAKE_EXECUTABLE_SUFFIX STREQUAL ""
-    OR NOT "${output_name}" STREQUAL "AyuGram")
+    OR NOT "${output_name}" STREQUAL "ViGram")
     set(output_folder ${CMAKE_BINARY_DIR})
 else()
     set(output_folder ${CMAKE_BINARY_DIR}/bin)

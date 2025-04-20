@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -19,16 +19,13 @@ class ItemBase;
 
 class PopupMenu;
 
-[[nodiscard]] base::unique_qptr<Menu::ItemBase> ContextActionWithSubText(
-	not_null<Menu::Menu*> menu,
-	const style::icon &icon,
-	const QString &title,
-	const QString &subtext,
-	Fn<void()> callback = nullptr);
+[[nodiscard]] base::unique_qptr<Menu::ItemBase> ContextActionWithSubText(not_null<Menu::Menu *> menu,
+																		 const style::icon &icon,
+																		 const QString &title,
+																		 const QString &subtext,
+																		 Fn<void()> callback = nullptr);
 
-[[nodiscard]] base::unique_qptr<Menu::ItemBase> ContextActionStickerAuthor(
-	not_null<Menu::Menu*> menu,
-	not_null<Main::Session*> session,
-	ID authorId);
+[[nodiscard]] base::unique_qptr<Menu::ItemBase>
+ContextActionStickerAuthor(not_null<Menu::Menu *> menu, not_null<Main::Session *> session, ID authorId);
 
 } // namespace Ui

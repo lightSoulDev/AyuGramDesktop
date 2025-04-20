@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -16,24 +16,21 @@
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
-#include "ui/ui_utility.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/ui_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "window/themes/window_theme.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
-#include "window/themes/window_theme.h"
 
 namespace MessageHistory {
 
 class FixedBar final : public TWidget
 {
 public:
-	FixedBar(
-		QWidget *parent,
-		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> peer);
+	FixedBar(QWidget *parent, not_null<Window::SessionController *> controller, not_null<PeerData *> peer);
 
 	// When animating mode is enabled the content is hidden and the
 	// whole fixed bar acts like a back button.
@@ -47,19 +44,18 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	not_null<Window::SessionController*> _controller;
-	not_null<PeerData*> _peer;
+	not_null<Window::SessionController *> _controller;
+	not_null<PeerData *> _peer;
 	object_ptr<Profile::BackButton> _backButton;
 	object_ptr<Ui::CrossButton> _cancel;
 
 	bool _animatingMode = false;
 };
 
-object_ptr<Window::SectionWidget> SectionMemento::createWidget(
-	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	Window::Column column,
-	const QRect &geometry) {
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent,
+															   not_null<Window::SessionController *> controller,
+															   Window::Column column,
+															   const QRect &geometry) {
 	if (column == Window::Column::Third) {
 		return nullptr;
 	}
@@ -68,27 +64,17 @@ object_ptr<Window::SectionWidget> SectionMemento::createWidget(
 	return result;
 }
 
-FixedBar::FixedBar(
-	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	not_null<PeerData*> peer)
-	: TWidget(parent), _controller(controller), _peer(peer), _backButton(
-		  this,
-		  &controller->session(),
-		  tr::lng_terms_back(tr::now),
-		  controller->adaptive().oneColumnValue()), _cancel(this, st::historyAdminLogCancelSearch) {
+FixedBar::FixedBar(QWidget *parent, not_null<Window::SessionController *> controller, not_null<PeerData *> peer)
+	: TWidget(parent), _controller(controller), _peer(peer),
+	  _backButton(this, &controller->session(), tr::lng_terms_back(tr::now), controller->adaptive().oneColumnValue()),
+	  _cancel(this, st::historyAdminLogCancelSearch) {
 	_backButton->moveToLeft(0, 0);
-	_backButton->setClickedCallback([=]
-	{
-		goBack();
-	});
+	_backButton->setClickedCallback([=] { goBack(); });
 
 	_cancel->hide(anim::type::instant);
 }
 
-void FixedBar::goBack() {
-	_controller->showBackFromStack();
-}
+void FixedBar::goBack() { _controller->showBackFromStack(); }
 
 int FixedBar::resizeGetHeight(int newWidth) {
 	auto filterLeft = newWidth;
@@ -138,68 +124,39 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-Widget::Widget(
-	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	not_null<PeerData*> peer,
-	HistoryItem *item,
-	ID topicId)
-	: Window::SectionWidget(parent, controller, rpl::single<PeerData*>(peer)),
-	  _scroll(this, st::historyScroll, false),
-	  _fixedBar(this, controller, peer),
-	  _fixedBarShadow(this),
-	  _item(item),
-	  _topicId(topicId) {
+Widget::Widget(QWidget *parent,
+			   not_null<Window::SessionController *> controller,
+			   not_null<PeerData *> peer,
+			   HistoryItem *item,
+			   ID topicId)
+	: Window::SectionWidget(parent, controller, rpl::single<PeerData *>(peer)), _scroll(this, st::historyScroll, false),
+	  _fixedBar(this, controller, peer), _fixedBarShadow(this), _item(item), _topicId(topicId) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->show();
 
 	_fixedBarShadow->raise();
 
-	controller->adaptive().value(
-	) | rpl::start_with_next([=]
-							 {
-								 updateAdaptiveLayout();
-							 },
-							 lifetime());
+	controller->adaptive().value() | rpl::start_with_next([=] { updateAdaptiveLayout(); }, lifetime());
 
 	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, peer, item, topicId));
-	_inner->scrollToSignal(
-	) | rpl::start_with_next([=](int top)
-							 {
-								 _scroll->scrollToY(top);
-							 },
-							 lifetime());
+	_inner->scrollToSignal() | rpl::start_with_next([=](int top) { _scroll->scrollToY(top); }, lifetime());
 
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
-	_scroll->scrolls(
-	) | rpl::start_with_next([=]
-							 {
-								 onScroll();
-							 },
-							 lifetime());
+	_scroll->scrolls() | rpl::start_with_next([=] { onScroll(); }, lifetime());
 
 	setupShortcuts();
 }
 
 void Widget::updateAdaptiveLayout() {
-	_fixedBarShadow->moveToLeft(
-		controller()->adaptive().isOneColumn()
-			? 0
-			: st::lineWidth,
-		_fixedBar->height());
+	_fixedBarShadow->moveToLeft(controller()->adaptive().isOneColumn() ? 0 : st::lineWidth, _fixedBar->height());
 }
 
-not_null<PeerData*> Widget::channel() const {
-	return _inner->peer();
-}
+not_null<PeerData *> Widget::channel() const { return _inner->peer(); }
 
 Dialogs::RowDescriptor Widget::activeChat() const {
-	return {
-		channel()->owner().history(channel()),
-		FullMsgId(channel()->id, ShowAtUnreadMsgId)
-	};
+	return {channel()->owner().history(channel()), FullMsgId(channel()->id, ShowAtUnreadMsgId)};
 }
 
 QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
@@ -209,14 +166,10 @@ QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	return result;
 }
 
-void Widget::doSetInnerFocus() {
-	_inner->setFocus();
-}
+void Widget::doSetInnerFocus() { _inner->setFocus(); }
 
-bool Widget::showInternal(
-	not_null<Window::SectionMemento*> memento,
-	const Window::SectionShow &params) {
-	if (auto logMemento = dynamic_cast<SectionMemento*>(memento.get())) {
+bool Widget::showInternal(not_null<Window::SectionMemento *> memento, const Window::SectionShow &params) {
+	if (auto logMemento = dynamic_cast<SectionMemento *>(memento.get())) {
 		if (logMemento->getPeer() == channel()) {
 			restoreState(logMemento);
 			return true;
@@ -225,7 +178,7 @@ bool Widget::showInternal(
 	return false;
 }
 
-void Widget::setInternalState(const QRect &geometry, not_null<SectionMemento*> memento) {
+void Widget::setInternalState(const QRect &geometry, not_null<SectionMemento *> memento) {
 	setGeometry(geometry);
 	Ui::SendPendingMoveResizeEvents(this);
 	restoreState(memento);
@@ -241,12 +194,12 @@ std::shared_ptr<Window::SectionMemento> Widget::createMemento() {
 	return result;
 }
 
-void Widget::saveState(not_null<SectionMemento*> memento) {
+void Widget::saveState(not_null<SectionMemento *> memento) {
 	memento->setScrollTop(_scroll->scrollTop());
 	_inner->saveState(memento);
 }
 
-void Widget::restoreState(not_null<SectionMemento*> memento) {
+void Widget::restoreState(not_null<SectionMemento *> memento) {
 	_inner->restoreState(memento);
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);
@@ -289,11 +242,11 @@ void Widget::paintEvent(QPaintEvent *e) {
 	} else if (controller()->contentOverlapped(this, e)) {
 		return;
 	}
-	//if (hasPendingResizedItems()) {
+	// if (hasPendingResizedItems()) {
 	//	updateListSize();
-	//}
+	// }
 
-	//auto ms = crl::now();
+	// auto ms = crl::now();
 	//_historyDownShown.step(ms);
 
 	const auto clip = e->rect();
@@ -305,22 +258,15 @@ void Widget::onScroll() {
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 }
 
-void Widget::showAnimatedHook(
-	const Window::SectionSlideParams &params) {
+void Widget::showAnimatedHook(const Window::SectionSlideParams &params) {
 	_fixedBar->setAnimatingMode(true);
 	if (params.withTopBarShadow) _fixedBarShadow->show();
 }
 
-void Widget::showFinishedHook() {
-	_fixedBar->setAnimatingMode(false);
-}
+void Widget::showFinishedHook() { _fixedBar->setAnimatingMode(false); }
 
-bool Widget::floatPlayerHandleWheelEvent(QEvent *e) {
-	return _scroll->viewportEvent(e);
-}
+bool Widget::floatPlayerHandleWheelEvent(QEvent *e) { return _scroll->viewportEvent(e); }
 
-QRect Widget::floatPlayerAvailableRect() {
-	return mapToGlobal(_scroll->geometry());
-}
+QRect Widget::floatPlayerAvailableRect() { return mapToGlobal(_scroll->geometry()); }
 
 } // namespace MessageHistory

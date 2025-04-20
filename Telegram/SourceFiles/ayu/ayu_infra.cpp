@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -34,17 +34,11 @@ void initUiSettings() {
 	AyuUiSettings::setWideMultiplier(settings->wideMultiplier);
 }
 
-void initDatabase() {
-	AyuDatabase::initialize();
-}
+void initDatabase() { AyuDatabase::initialize(); }
 
-void initWorker() {
-	AyuWorker::initialize();
-}
+void initWorker() { AyuWorker::initialize(); }
 
-void initRCManager() {
-	RCManager::getInstance().start();
-}
+void initRCManager() { RCManager::getInstance().start(); }
 
 void init() {
 	initLang();
@@ -54,4 +48,4 @@ void init() {
 	initRCManager();
 }
 
-}
+} // namespace AyuInfra

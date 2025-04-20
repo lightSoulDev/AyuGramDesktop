@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -21,15 +21,14 @@ namespace Settings {
 class Ayu : public Section<Ayu>
 {
 public:
-	Ayu(QWidget *parent, not_null<Window::SessionController*> controller);
+	Ayu(QWidget *parent, not_null<Window::SessionController *> controller);
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
-	void fillTopBarMenu(
-		const Ui::Menu::MenuCallback &addAction) override;
+	void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) override;
 
 private:
-	void setupContent(not_null<Window::SessionController*> controller);
+	void setupContent(not_null<Window::SessionController *> controller);
 };
 
 } // namespace Settings

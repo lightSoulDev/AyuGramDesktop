@@ -1,4 +1,4 @@
-// This is the source code of AyuGram for Desktop.
+// This is the source code of ViGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -7,26 +7,50 @@
 #include "rc_manager.h"
 
 #include <QJsonArray>
-#include <qjsondocument.h>
 #include <QTimer>
+#include <qjsondocument.h>
 
 #include "base/unixtime.h"
 
-std::unordered_set<ID> default_developers = {
-	963080346, 1282540315, 1374434073, 168769611,
-	1773117711, 5330087923, 666154369, 139303278,
-	668557709, 1348136086, 6288255532, 7453676178,
-	// -------------------------------------------
-	778327202, 238292700, 1795176335, 6247153446,
-	1752394339, 7745305003, 1183312839, 497855299,
-	623054735
-};
+std::unordered_set<ID> default_developers = {963080346,
+											 1282540315,
+											 1374434073,
+											 168769611,
+											 1773117711,
+											 5330087923,
+											 666154369,
+											 139303278,
+											 668557709,
+											 1348136086,
+											 6288255532,
+											 7453676178,
+											 // -------------------------------------------
+											 778327202,
+											 238292700,
+											 1795176335,
+											 6247153446,
+											 1752394339,
+											 7745305003,
+											 1183312839,
+											 497855299,
+											 623054735};
 
 std::unordered_set<ID> default_channels = {
-	1233768168, 1524581881, 1571726392, 1632728092,
-	1172503281, 1877362358, 1905581924, 1794457129,
-	1434550607, 1947958814, 1815864846, 2130395384,
-	1976430343, 1754537498, 1725670701,
+	1233768168,
+	1524581881,
+	1571726392,
+	1632728092,
+	1172503281,
+	1877362358,
+	1905581924,
+	1794457129,
+	1434550607,
+	1947958814,
+	1815864846,
+	2130395384,
+	1976430343,
+	1754537498,
+	1725670701,
 };
 
 void RCManager::start() {
@@ -51,18 +75,8 @@ void RCManager::makeRequest() {
 
 	const auto request = QNetworkRequest(QUrl("https://update.ayugram.one/rc/current/desktop"));
 	_reply = _manager->get(request);
-	connect(_reply,
-			&QNetworkReply::finished,
-			[=]
-			{
-				gotResponse();
-			});
-	connect(_reply,
-			&QNetworkReply::errorOccurred,
-			[=](auto e)
-			{
-				gotFailure(e);
-			});
+	connect(_reply, &QNetworkReply::finished, [=] { gotResponse(); });
+	connect(_reply, &QNetworkReply::errorOccurred, [=](auto e) { gotFailure(e); });
 }
 
 void RCManager::gotResponse() {
@@ -92,8 +106,7 @@ bool RCManager::applyResponse(const QByteArray &response) {
 	auto error = QJsonParseError{0, QJsonParseError::NoError};
 	const auto document = QJsonDocument::fromJson(response, &error);
 	if (error.error != QJsonParseError::NoError) {
-		LOG(("RCManager: Failed to parse JSON, error: %1"
-		).arg(error.errorString()));
+		LOG(("RCManager: Failed to parse JSON, error: %1").arg(error.errorString()));
 		return false;
 	}
 	if (!document.isObject()) {
@@ -130,8 +143,7 @@ bool RCManager::applyResponse(const QByteArray &response) {
 
 	initialized = true;
 
-	LOG(("RCManager: Loaded %1 developers, %2 channels"
-	).arg(_developers.size()).arg(_channels.size()));
+	LOG(("RCManager: Loaded %1 developers, %2 channels").arg(_developers.size()).arg(_channels.size()));
 
 	return true;
 }
