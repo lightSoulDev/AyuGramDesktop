@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -8,7 +8,7 @@
 
 namespace AyuMapper {
 
-std::pair<std::string, std::vector<char>> serializeTextWithEntities(not_null<HistoryItem *> item);
-int mapItemFlagsToMTPFlags(not_null<HistoryItem *> item);
+std::pair<std::string, std::vector<char>> serializeTextWithEntities(not_null<HistoryItem*> item);
+int mapItemFlagsToMTPFlags(not_null<HistoryItem*> item);
 
 } // namespace AyuMapper

@@ -1,4 +1,4 @@
-﻿// This is the source code of ViGram for Desktop.
+﻿// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -13,12 +13,11 @@
 namespace AyuMessages {
 
 void addEditedMessage(not_null<HistoryItem *> item);
-std::vector<AyuMessageBase> getEditedMessages(not_null<HistoryItem *> item, ID minId, ID maxId, int totalLimit);
-bool hasRevisions(not_null<HistoryItem *> item);
+std::vector<AyuMessageBase> getEditedMessages(not_null<HistoryItem*> item, ID minId, ID maxId, int totalLimit);
+bool hasRevisions(not_null<HistoryItem*> item);
 
-void addDeletedMessage(not_null<HistoryItem *> item);
-std::vector<AyuMessageBase>
-getDeletedMessages(not_null<PeerData *> peer, ID topicId, ID minId, ID maxId, int totalLimit);
-bool hasDeletedMessages(not_null<PeerData *> peer, ID topicId);
+void addDeletedMessage(not_null<HistoryItem*> item);
+std::vector<AyuMessageBase> getDeletedMessages(not_null<PeerData*> peer, ID topicId, ID minId, ID maxId, int totalLimit);
+bool hasDeletedMessages(not_null<PeerData*> peer, ID topicId);
 
-} // namespace AyuMessages
+}

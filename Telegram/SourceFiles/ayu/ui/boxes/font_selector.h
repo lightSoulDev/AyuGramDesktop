@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -6,8 +6,8 @@
 // Copyright @Radolyn, 2025
 #pragma once
 
-#include "base/binary_guard.h"
 #include "boxes/abstract_box.h"
+#include "base/binary_guard.h"
 
 struct LanguageId;
 struct Font;
@@ -44,7 +44,7 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
-	void setupTop(not_null<Ui::VerticalLayout *> container);
+	void setupTop(not_null<Ui::VerticalLayout*> container);
 	[[nodiscard]] int rowsInPage() const;
 
 	Window::SessionController *_controller = nullptr;
@@ -52,6 +52,7 @@ private:
 	Fn<void()> _setInnerFocus;
 	Fn<Ui::ScrollToRequest(int rows)> _jump;
 	Fn<void(QString font)> _hook;
+
 };
 
-} // namespace AyuUi
+}

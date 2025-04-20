@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -9,6 +9,10 @@
 #include <QString>
 #include "json.hpp"
 
-inline void to_json(nlohmann::json &j, const QString &q) { j = nlohmann::json(q.toStdString()); }
+inline void to_json(nlohmann::json &j, const QString &q) {
+	j = nlohmann::json(q.toStdString());
+}
 
-inline void from_json(const nlohmann::json &j, QString &q) { q = QString::fromStdString(j.get<std::string>()); }
+inline void from_json(const nlohmann::json &j, QString &q) {
+	q = QString::fromStdString(j.get<std::string>());
+}

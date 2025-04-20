@@ -7,47 +7,47 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/main_window_win.h"
 
-#include "base/crc32hash.h"
-#include "base/platform/base_platform_info.h"
-#include "base/platform/win/base_windows_wrl.h"
-#include "core/application.h"
-#include "core/sandbox.h"
-#include "history/history.h"
-#include "lang/lang_keys.h"
-#include "main/main_session.h"
-#include "mainwindow.h"
-#include "platform/platform_notifications_manager.h"
+#include "styles/style_window.h"
 #include "platform/platform_specific.h"
-#include "platform/win/integration_win.h"
+#include "platform/platform_notifications_manager.h"
 #include "platform/win/tray_win.h"
 #include "platform/win/windows_dlls.h"
-#include "storage/localstorage.h"
-#include "styles/style_window.h"
-#include "ui/ui_utility.h"
-#include "ui/widgets/popup_menu.h"
+#include "platform/win/integration_win.h"
 #include "window/notifications_manager.h"
+#include "window/window_session_controller.h"
+#include "mainwindow.h"
+#include "main/main_session.h"
+#include "base/crc32hash.h"
+#include "base/platform/win/base_windows_wrl.h"
+#include "base/platform/base_platform_info.h"
+#include "core/application.h"
+#include "core/sandbox.h"
+#include "lang/lang_keys.h"
+#include "storage/localstorage.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/ui_utility.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
-#include "window/window_session_controller.h"
+#include "history/history.h"
 
-#include <QtCore/QOperatingSystemVersion>
-#include <QtGui/QScreen>
-#include <QtGui/QWindow>
-#include <QtWidgets/QApplication>
 #include <QtWidgets/QStyleFactory>
+#include <QtWidgets/QApplication>
+#include <QtGui/QWindow>
+#include <QtGui/QScreen>
+#include <QtCore/QOperatingSystemVersion>
 
 #include <Shobjidl.h>
+#include <shellapi.h>
 #include <WtsApi32.h>
 #include <dwmapi.h>
-#include <shellapi.h>
 
-#include <UIViewSettingsInterop.h>
 #include <windows.ui.viewmanagement.h>
+#include <UIViewSettingsInterop.h>
 
-#include <VersionHelpers.h>
 #include <Windowsx.h>
+#include <VersionHelpers.h>
 
-// ViGram includes
+// AyuGram includes
 #include "ayu/ayu_settings.h"
 
 
@@ -70,24 +70,31 @@ constexpr auto kKeepActiveForTrayIcon = crl::time(500);
 using namespace Microsoft::WRL;
 
 // Taken from qtbase/src/gui/image/qpixmap_win.cpp
-enum HBitmapFormat
-{
+enum HBitmapFormat {
 	HBitmapNoAlpha,
 	HBitmapPremultipliedAlpha,
 	HBitmapAlpha
 };
 
-class EventFilter final : public QAbstractNativeEventFilter
-{
+class EventFilter final : public QAbstractNativeEventFilter {
 public:
-	explicit EventFilter(not_null<MainWindow *> window);
+	explicit EventFilter(not_null<MainWindow*> window);
 
 private:
-	bool nativeEventFilter(const QByteArray &eventType, void *message, native_event_filter_result *result) override;
+	bool nativeEventFilter(
+		const QByteArray &eventType,
+		void *message,
+		native_event_filter_result *result) override;
 
-	bool mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *result);
+	bool mainWindowEvent(
+		HWND hWnd,
+		UINT msg,
+		WPARAM wParam,
+		LPARAM lParam,
+		LRESULT *result);
 
-	const not_null<MainWindow *> _window;
+	const not_null<MainWindow*> _window;
+
 };
 
 
@@ -101,8 +108,7 @@ private:
 	return nullptr;
 }
 
-struct RealSize
-{
+struct RealSize {
 	QSize value;
 	bool maximized = false;
 };
@@ -112,11 +118,13 @@ struct RealSize
 	if (!GetWindowPlacement(hwnd, &placement)) {
 		return {};
 	} else if (placement.flags & WPF_RESTORETOMAXIMIZED) {
-		const auto monitor = MonitorFromRect(&placement.rcNormalPosition, MONITOR_DEFAULTTONULL);
+		const auto monitor = MonitorFromRect(
+			&placement.rcNormalPosition,
+			MONITOR_DEFAULTTONULL);
 		if (!monitor) {
 			return {};
 		}
-		auto info = MONITORINFO{.cbSize = sizeof(MONITORINFO)};
+		auto info = MONITORINFO{ .cbSize = sizeof(MONITORINFO) };
 		if (!GetMonitorInfo(monitor, &info)) {
 			return {};
 		}
@@ -124,11 +132,16 @@ struct RealSize
 	} else {
 		CopyRect(&result, &placement.rcNormalPosition);
 	}
-	return {{int(result.right - result.left), int(result.bottom - result.top)},
-			((placement.flags & WPF_RESTORETOMAXIMIZED) != 0)};
+	return {
+		{ int(result.right - result.left), int(result.bottom - result.top) },
+		((placement.flags & WPF_RESTORETOMAXIMIZED) != 0)
+	};
 }
 
-[[nodiscard]] QImage PrepareLogoPreview(QSize size, QImage::Format format, int radius = 0) {
+[[nodiscard]] QImage PrepareLogoPreview(
+		QSize size,
+		QImage::Format format,
+		int radius = 0) {
 	auto result = QImage(size, QImage::Format_RGB32);
 	result.fill(st::windowBg->c);
 
@@ -137,99 +150,119 @@ struct RealSize
 	const auto height = size.height();
 	const auto side = logo.width();
 	const auto skip = width / 8;
-	const auto use = std::min({width - skip, height - skip, side});
+	const auto use = std::min({ width - skip, height - skip, side });
 	auto p = QPainter(&result);
 	if (use == side) {
 		p.drawImage((width - side) / 2, (height - side) / 2, logo);
 	} else {
-		const auto scaled = logo.scaled(use, use, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+		const auto scaled = logo.scaled(
+			use,
+			use,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
 		p.drawImage((width - use) / 2, (height - use) / 2, scaled);
 	}
 	p.end();
 
-	return radius ? Images::Round(std::move(result), Images::CornersMask(radius)) : result;
+	return radius
+		? Images::Round(std::move(result), Images::CornersMask(radius))
+		: result;
 }
 
-EventFilter::EventFilter(not_null<MainWindow *> window) : _window(window) {}
-
-bool EventFilter::nativeEventFilter(const QByteArray &eventType, void *message, native_event_filter_result *result) {
-	return Core::Sandbox::Instance().customEnterFromEventLoop(
-		[&]
-		{
-			const auto msg = static_cast<MSG *>(message);
-			if (msg->hwnd == _window->psHwnd() || msg->hwnd && !_window->psHwnd()) {
-				return mainWindowEvent(msg->hwnd, msg->message, msg->wParam, msg->lParam, (LRESULT *) result);
-			}
-			return false;
-		});
+EventFilter::EventFilter(not_null<MainWindow*> window) : _window(window) {
 }
 
-bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *result) {
+bool EventFilter::nativeEventFilter(
+		const QByteArray &eventType,
+		void *message,
+		native_event_filter_result *result) {
+	return Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		const auto msg = static_cast<MSG*>(message);
+		if (msg->hwnd == _window->psHwnd()
+			|| msg->hwnd && !_window->psHwnd()) {
+			return mainWindowEvent(
+				msg->hwnd,
+				msg->message,
+				msg->wParam,
+				msg->lParam,
+				(LRESULT*)result);
+		}
+		return false;
+	});
+}
+
+bool EventFilter::mainWindowEvent(
+		HWND hWnd,
+		UINT msg,
+		WPARAM wParam,
+		LPARAM lParam,
+		LRESULT *result) {
 	switch (msg) {
 
-		case WM_DESTROY: {
-			_window->destroyedFromSystem();
-		}
-			return false;
+	case WM_DESTROY: {
+		_window->destroyedFromSystem();
+	} return false;
 
-		case WM_ACTIVATE: {
-			if (LOWORD(wParam) != WA_INACTIVE) {
-				_window->shadowsActivate();
-			} else {
-				_window->shadowsDeactivate();
+	case WM_ACTIVATE: {
+		if (LOWORD(wParam) != WA_INACTIVE) {
+			_window->shadowsActivate();
+		} else {
+			_window->shadowsDeactivate();
+		}
+	} return false;
+
+	case WM_SIZE: {
+		if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED || wParam == SIZE_MINIMIZED) {
+			if (wParam == SIZE_RESTORED && _window->windowState() == Qt::WindowNoState) {
+				_window->positionUpdated();
 			}
 		}
+	} return false;
+
+	case WM_MOVE: {
+		_window->positionUpdated();
+	} return false;
+
+	case WM_DWMSENDICONICTHUMBNAIL: {
+		if (!Core::App().passcodeLocked()) {
 			return false;
-
-		case WM_SIZE: {
-			if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED || wParam == SIZE_MINIMIZED) {
-				if (wParam == SIZE_RESTORED && _window->windowState() == Qt::WindowNoState) {
-					_window->positionUpdated();
-				}
-			}
 		}
+		const auto size = QSize(int(HIWORD(lParam)), int(LOWORD(lParam)));
+		return _window->setDwmThumbnail(size);
+	}
+
+	case WM_DWMSENDICONICLIVEPREVIEWBITMAP: {
+		if (!Core::App().passcodeLocked()) {
 			return false;
-
-		case WM_MOVE: {
-			_window->positionUpdated();
 		}
-			return false;
+		const auto size = DetectRealSize(hWnd);
+		const auto radius = size.maximized ? 0 : style::ConvertScale(8);
+		return _window->setDwmPreview(size.value, radius);
+	}
 
-		case WM_DWMSENDICONICTHUMBNAIL: {
-			if (!Core::App().passcodeLocked()) {
-				return false;
-			}
-			const auto size = QSize(int(HIWORD(lParam)), int(LOWORD(lParam)));
-			return _window->setDwmThumbnail(size);
-		}
-
-		case WM_DWMSENDICONICLIVEPREVIEWBITMAP: {
-			if (!Core::App().passcodeLocked()) {
-				return false;
-			}
-			const auto size = DetectRealSize(hWnd);
-			const auto radius = size.maximized ? 0 : style::ConvertScale(8);
-			return _window->setDwmPreview(size.value, radius);
-		}
 	}
 	return false;
 }
 
 } // namespace
 
-struct MainWindow::Private
-{
-	explicit Private(not_null<MainWindow *> window) : filter(window) {}
+struct MainWindow::Private {
+	explicit Private(not_null<MainWindow*> window) : filter(window) {
+	}
 
 	EventFilter filter;
 	ComPtr<ViewManagement::IUIViewSettings> viewSettings;
 };
 
-MainWindow::BitmapPointer::BitmapPointer(HBITMAP value) : _value(value) {}
+MainWindow::BitmapPointer::BitmapPointer(HBITMAP value) : _value(value) {
+}
 
-MainWindow::BitmapPointer::BitmapPointer(BitmapPointer &&other) : _value(base::take(other._value)) {}
+MainWindow::BitmapPointer::BitmapPointer(BitmapPointer &&other)
+: _value(base::take(other._value)) {
+}
 
-MainWindow::BitmapPointer &MainWindow::BitmapPointer::operator=(BitmapPointer &&other) {
+MainWindow::BitmapPointer &MainWindow::BitmapPointer::operator=(
+		BitmapPointer &&other) {
 	if (_value != other._value) {
 		reset();
 		_value = base::take(other._value);
@@ -237,13 +270,21 @@ MainWindow::BitmapPointer &MainWindow::BitmapPointer::operator=(BitmapPointer &&
 	return *this;
 }
 
-MainWindow::BitmapPointer::~BitmapPointer() { reset(); }
+MainWindow::BitmapPointer::~BitmapPointer() {
+	reset();
+}
 
-HBITMAP MainWindow::BitmapPointer::get() const { return _value; }
+HBITMAP MainWindow::BitmapPointer::get() const {
+	return _value;
+}
 
-MainWindow::BitmapPointer::operator bool() const { return _value != nullptr; }
+MainWindow::BitmapPointer::operator bool() const {
+	return _value != nullptr;
+}
 
-void MainWindow::BitmapPointer::release() { _value = nullptr; }
+void MainWindow::BitmapPointer::release() {
+	_value = nullptr;
+}
 
 void MainWindow::BitmapPointer::reset(HBITMAP value) {
 	if (_value != value) {
@@ -253,9 +294,10 @@ void MainWindow::BitmapPointer::reset(HBITMAP value) {
 	}
 }
 
-MainWindow::MainWindow(not_null<Window::Controller *> controller)
-	: Window::MainWindow(controller), _private(std::make_unique<Private>(this)),
-	  _taskbarHiderWindow(std::make_unique<QWindow>()) {
+MainWindow::MainWindow(not_null<Window::Controller*> controller)
+: Window::MainWindow(controller)
+, _private(std::make_unique<Private>(this))
+, _taskbarHiderWindow(std::make_unique<QWindow>()) {
 	qApp->installNativeEventFilter(&_private->filter);
 
 	setupNativeWindowFrame();
@@ -263,37 +305,56 @@ MainWindow::MainWindow(not_null<Window::Controller *> controller)
 	SetWindowPriority(this, controller->isPrimary() ? 2 : 1);
 
 	using namespace rpl::mappers;
-	Core::App().appDeactivatedValue() | rpl::distinct_until_changed() | rpl::filter(_1) |
-		rpl::start_with_next([=] { _lastDeactivateTime = crl::now(); }, lifetime());
+	Core::App().appDeactivatedValue(
+	) | rpl::distinct_until_changed(
+	) | rpl::filter(_1) | rpl::start_with_next([=] {
+		_lastDeactivateTime = crl::now();
+	}, lifetime());
 
 	setupPreviewPasscodeLock();
 }
 
 void MainWindow::setupPreviewPasscodeLock() {
-	Core::App().passcodeLockValue() |
-		rpl::start_with_next(
-			[=](bool locked)
-			{
-				// Use iconic bitmap instead of the window content if passcoded.
-				BOOL fForceIconic = locked ? TRUE : FALSE;
-				BOOL fHasIconicBitmap = fForceIconic;
-				DwmSetWindowAttribute(_hWnd, DWMWA_FORCE_ICONIC_REPRESENTATION, &fForceIconic, sizeof(fForceIconic));
-				DwmSetWindowAttribute(_hWnd, DWMWA_HAS_ICONIC_BITMAP, &fHasIconicBitmap, sizeof(fHasIconicBitmap));
-			},
-			lifetime());
+	Core::App().passcodeLockValue(
+	) | rpl::start_with_next([=](bool locked) {
+		// Use iconic bitmap instead of the window content if passcoded.
+		BOOL fForceIconic = locked ? TRUE : FALSE;
+		BOOL fHasIconicBitmap = fForceIconic;
+		DwmSetWindowAttribute(
+			_hWnd,
+			DWMWA_FORCE_ICONIC_REPRESENTATION,
+			&fForceIconic,
+			sizeof(fForceIconic));
+		DwmSetWindowAttribute(
+			_hWnd,
+			DWMWA_HAS_ICONIC_BITMAP,
+			&fHasIconicBitmap,
+			sizeof(fHasIconicBitmap));
+	}, lifetime());
 }
 
 void MainWindow::setupNativeWindowFrame() {
-	auto nativeFrame = rpl::single(Core::App().settings().nativeWindowFrame()) |
-		rpl::then(Core::App().settings().nativeWindowFrameChanges());
+	auto nativeFrame = rpl::single(
+		Core::App().settings().nativeWindowFrame()
+	) | rpl::then(
+		Core::App().settings().nativeWindowFrameChanges()
+	);
 
-	rpl::combine(std::move(nativeFrame), Window::Theme::IsNightModeValue()) | rpl::skip(1) |
-		rpl::start_with_next([=](bool native, bool night) { validateWindowTheme(native, night); }, lifetime());
+	rpl::combine(
+		std::move(nativeFrame),
+		Window::Theme::IsNightModeValue()
+	) | rpl::skip(1) | rpl::start_with_next([=](bool native, bool night) {
+		validateWindowTheme(native, night);
+	}, lifetime());
 }
 
-void MainWindow::shadowsActivate() { _hasActiveFrame = true; }
+void MainWindow::shadowsActivate() {
+	_hasActiveFrame = true;
+}
 
-void MainWindow::shadowsDeactivate() { _hasActiveFrame = false; }
+void MainWindow::shadowsDeactivate() {
+	_hasActiveFrame = false;
+}
 
 void MainWindow::destroyedFromSystem() {
 	if (!Core::App().closeNonLastAsync(&controller())) {
@@ -324,10 +385,16 @@ bool MainWindow::setDwmPreview(QSize size, int radius) {
 	validateDwmPreviewColors();
 	if (size.isEmpty()) {
 		return false;
-	} else if (!_dwmPreview || _dwmPreviewSize != size || _dwmPreviewRadius != radius) {
-		const auto format = (radius > 0) ? QImage::Format_ARGB32_Premultiplied : QImage::Format_RGB32;
+	} else if (!_dwmPreview
+		|| _dwmPreviewSize != size
+		|| _dwmPreviewRadius != radius) {
+		const auto format = (radius > 0)
+			? QImage::Format_ARGB32_Premultiplied
+			: QImage::Format_RGB32;
 		const auto result = PrepareLogoPreview(size, format, radius);
-		const auto bitmap = qt_imageToWinHBITMAP(result, (radius > 0) ? HBitmapPremultipliedAlpha : HBitmapNoAlpha);
+		const auto bitmap = qt_imageToWinHBITMAP(
+			result,
+			(radius > 0) ? HBitmapPremultipliedAlpha : HBitmapNoAlpha);
 		if (!bitmap) {
 			return false;
 		}
@@ -351,10 +418,13 @@ void MainWindow::validateDwmPreviewColors() {
 
 void MainWindow::forceIconRefresh() {
 	const auto refresher = std::make_unique<QWidget>(this);
-	refresher->setWindowFlags(static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
+	refresher->setWindowFlags(
+		static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
 	refresher->setGeometry(x() + 1, y() + 1, 1, 1);
 	auto palette = refresher->palette();
-	palette.setColor(QPalette::Window, (isActiveWindow() ? st::titleBgActive : st::titleBg)->c);
+	palette.setColor(
+		QPalette::Window,
+		(isActiveWindow() ? st::titleBgActive : st::titleBg)->c);
 	refresher->setPalette(palette);
 	refresher->show();
 	refresher->raise();
@@ -367,32 +437,32 @@ void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 	using WorkMode = Core::Settings::WorkMode;
 
 	switch (mode) {
-		case WorkMode::WindowAndTray: {
-			HWND psOwner = (HWND) GetWindowLongPtr(_hWnd, GWLP_HWNDPARENT);
-			if (psOwner) {
-				SetWindowLongPtr(_hWnd, GWLP_HWNDPARENT, 0);
-				windowHandle()->setTransientParent(nullptr);
-				forceIconRefresh();
-			}
-		} break;
+	case WorkMode::WindowAndTray: {
+		HWND psOwner = (HWND)GetWindowLongPtr(_hWnd, GWLP_HWNDPARENT);
+		if (psOwner) {
+			SetWindowLongPtr(_hWnd, GWLP_HWNDPARENT, 0);
+			windowHandle()->setTransientParent(nullptr);
+			forceIconRefresh();
+		}
+	} break;
 
-		case WorkMode::TrayOnly: {
-			HWND psOwner = (HWND) GetWindowLongPtr(_hWnd, GWLP_HWNDPARENT);
-			if (!psOwner) {
-				const auto hwnd = _taskbarHiderWindow->winId();
-				SetWindowLongPtr(_hWnd, GWLP_HWNDPARENT, (LONG_PTR) hwnd);
-				windowHandle()->setTransientParent(_taskbarHiderWindow.get());
-			}
-		} break;
+	case WorkMode::TrayOnly: {
+		HWND psOwner = (HWND)GetWindowLongPtr(_hWnd, GWLP_HWNDPARENT);
+		if (!psOwner) {
+			const auto hwnd = _taskbarHiderWindow->winId();
+			SetWindowLongPtr(_hWnd, GWLP_HWNDPARENT, (LONG_PTR)hwnd);
+			windowHandle()->setTransientParent(_taskbarHiderWindow.get());
+		}
+	} break;
 
-		case WorkMode::WindowOnly: {
-			HWND psOwner = (HWND) GetWindowLongPtr(_hWnd, GWLP_HWNDPARENT);
-			if (psOwner) {
-				SetWindowLongPtr(_hWnd, GWLP_HWNDPARENT, 0);
-				windowHandle()->setTransientParent(nullptr);
-				forceIconRefresh();
-			}
-		} break;
+	case WorkMode::WindowOnly: {
+		HWND psOwner = (HWND)GetWindowLongPtr(_hWnd, GWLP_HWNDPARENT);
+		if (psOwner) {
+			SetWindowLongPtr(_hWnd, GWLP_HWNDPARENT, 0);
+			windowHandle()->setTransientParent(nullptr);
+			forceIconRefresh();
+		}
+	} break;
 	}
 }
 
@@ -413,23 +483,33 @@ bool MainWindow::initGeometryFromSystem() {
 	return true;
 }
 
-bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, native_event_filter_result *result) {
+bool MainWindow::nativeEvent(
+		const QByteArray &eventType,
+		void *message,
+		native_event_filter_result *result) {
 	if (message) {
-		const auto msg = static_cast<MSG *>(message);
+		const auto msg = static_cast<MSG*>(message);
 		if (msg->message == WM_IME_STARTCOMPOSITION) {
-			Core::Sandbox::Instance().customEnterFromEventLoop([&] { imeCompositionStartReceived(); });
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				imeCompositionStartReceived();
+			});
 		}
 	}
 	return false;
 }
 
-void MainWindow::updateWindowIcon() { updateTaskbarAndIconCounters(); }
-
-bool MainWindow::isActiveForTrayMenu() {
-	return !_lastDeactivateTime || (_lastDeactivateTime + kKeepActiveForTrayIcon >= crl::now());
+void MainWindow::updateWindowIcon() {
+	updateTaskbarAndIconCounters();
 }
 
-void MainWindow::unreadCounterChangedHook() { updateTaskbarAndIconCounters(); }
+bool MainWindow::isActiveForTrayMenu() {
+	return !_lastDeactivateTime
+		|| (_lastDeactivateTime + kKeepActiveForTrayIcon >= crl::now());
+}
+
+void MainWindow::unreadCounterChangedHook() {
+	updateTaskbarAndIconCounters();
+}
 
 void MainWindow::updateTaskbarAndIconCounters() {
 	const auto settings = &AyuSettings::getInstance();
@@ -439,39 +519,60 @@ void MainWindow::updateTaskbarAndIconCounters() {
 	const auto controller = sessionController();
 	const auto session = controller ? &controller->session() : nullptr;
 
-	const auto iconSizeSmall = QSize(GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
-	const auto iconSizeBig = QSize(GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON));
+	const auto iconSizeSmall = QSize(
+		GetSystemMetrics(SM_CXSMICON),
+		GetSystemMetrics(SM_CYSMICON));
+	const auto iconSizeBig = QSize(
+		GetSystemMetrics(SM_CXICON),
+		GetSystemMetrics(SM_CYICON));
 	const auto supportMode = session && session->supportMode();
 
-	auto iconSmallPixmap16 =
-		Tray::IconWithCounter(Tray::CounterLayerArgs(16, counter, muted), true, false, supportMode);
-	auto iconSmallPixmap32 =
-		Tray::IconWithCounter(Tray::CounterLayerArgs(32, counter, muted), true, false, supportMode);
+	auto iconSmallPixmap16 = Tray::IconWithCounter(
+		Tray::CounterLayerArgs(16, counter, muted),
+		true,
+		false,
+		supportMode);
+	auto iconSmallPixmap32 = Tray::IconWithCounter(
+		Tray::CounterLayerArgs(32, counter, muted),
+		true,
+		false,
+		supportMode);
 	QIcon iconSmall, iconBig;
 	iconSmall.addPixmap(iconSmallPixmap16);
 	iconSmall.addPixmap(iconSmallPixmap32);
 	const auto integration = &Platform::WindowsIntegration::Instance();
 	const auto taskbarList = integration->taskbarList();
 	const auto bigCounter = taskbarList ? 0 : counter;
-	iconBig.addPixmap(Tray::IconWithCounter(Tray::CounterLayerArgs(32, bigCounter, muted), false, false, supportMode));
-	iconBig.addPixmap(Tray::IconWithCounter(Tray::CounterLayerArgs(64, bigCounter, muted), false, false, supportMode));
+	iconBig.addPixmap(Tray::IconWithCounter(
+		Tray::CounterLayerArgs(32, bigCounter, muted),
+		false,
+		false,
+		supportMode));
+	iconBig.addPixmap(Tray::IconWithCounter(
+		Tray::CounterLayerArgs(64, bigCounter, muted),
+		false,
+		false,
+		supportMode));
 
 	destroyCachedIcons();
 	_iconSmall = NativeIcon(iconSmall, iconSizeSmall);
 	_iconBig = NativeIcon(iconBig, iconSizeBig);
-	SendMessage(_hWnd, WM_SETICON, ICON_SMALL, (LPARAM) _iconSmall);
-	SendMessage(_hWnd, WM_SETICON, ICON_BIG, (LPARAM) (_iconBig ? _iconBig : _iconSmall));
+	SendMessage(_hWnd, WM_SETICON, ICON_SMALL, (LPARAM)_iconSmall);
+	SendMessage(_hWnd, WM_SETICON, ICON_BIG, (LPARAM)(_iconBig ? _iconBig : _iconSmall));
 	if (taskbarList) {
 		if (counter > 0) {
-			const auto pixmap = [&](int size)
-			{ return Ui::PixmapFromImage(Window::GenerateCounterLayer(Tray::CounterLayerArgs(size, counter, muted))); };
+			const auto pixmap = [&](int size) {
+				return Ui::PixmapFromImage(Window::GenerateCounterLayer(
+					Tray::CounterLayerArgs(size, counter, muted)));
+			};
 			QIcon iconOverlay;
 			iconOverlay.addPixmap(pixmap(16));
 			iconOverlay.addPixmap(pixmap(32));
 			_iconOverlay = NativeIcon(iconOverlay, iconSizeSmall);
 		}
-		const auto description =
-			(counter > 0) ? tr::lng_unread_bar(tr::now, lt_count, counter).toStdWString() : std::wstring();
+		const auto description = (counter > 0)
+			? tr::lng_unread_bar(tr::now, lt_count, counter).toStdWString()
+			: std::wstring();
 		taskbarList->SetOverlayIcon(_hWnd, _iconOverlay, description.c_str());
 	}
 	SetWindowPos(_hWnd, 0, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -489,14 +590,20 @@ void MainWindow::initHook() {
 	auto factory = ComPtr<IUIViewSettingsInterop>();
 	if (SupportsWRL()) {
 		ABI::Windows::Foundation::GetActivationFactory(
-			StringReferenceWrapper(RuntimeClass_Windows_UI_ViewManagement_UIViewSettings).Get(), &factory);
+			StringReferenceWrapper(
+				RuntimeClass_Windows_UI_ViewManagement_UIViewSettings).Get(),
+			&factory);
 		if (factory) {
 			// NB! No such method (or IUIViewSettingsInterop) in C++/WinRT :(
-			factory->GetForWindow(_hWnd, IID_PPV_ARGS(&_private->viewSettings));
+			factory->GetForWindow(
+				_hWnd,
+				IID_PPV_ARGS(&_private->viewSettings));
 		}
 	}
 
-	validateWindowTheme(Core::App().settings().nativeWindowFrame(), Window::Theme::IsNightMode());
+	validateWindowTheme(
+		Core::App().settings().nativeWindowFrame(),
+		Window::Theme::IsNightMode());
 }
 
 void MainWindow::validateWindowTheme(bool native, bool night) {
@@ -523,17 +630,24 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 
 	auto darkValue = BOOL(night ? TRUE : FALSE);
 
-	const auto updateStyle = [&]
-	{
+	const auto updateStyle = [&] {
 		static const auto kSystemVersion = QOperatingSystemVersion::current();
 		if (kSystemVersion.microVersion() >= 18875 && Dlls::SetWindowCompositionAttribute) {
 			Dlls::WINDOWCOMPOSITIONATTRIBDATA data = {
-				Dlls::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS, &darkValue, sizeof(darkValue)};
+				Dlls::WINDOWCOMPOSITIONATTRIB::WCA_USEDARKMODECOLORS,
+				&darkValue,
+				sizeof(darkValue)
+			};
 			Dlls::SetWindowCompositionAttribute(_hWnd, &data);
 		} else if (kSystemVersion.microVersion() >= 17763) {
-			static const auto kDWMWA_USE_IMMERSIVE_DARK_MODE =
-				(kSystemVersion.microVersion() >= 18985) ? DWORD(20) : DWORD(19);
-			DwmSetWindowAttribute(_hWnd, kDWMWA_USE_IMMERSIVE_DARK_MODE, &darkValue, sizeof(darkValue));
+			static const auto kDWMWA_USE_IMMERSIVE_DARK_MODE = (kSystemVersion.microVersion() >= 18985)
+				? DWORD(20)
+				: DWORD(19);
+			DwmSetWindowAttribute(
+				_hWnd,
+				kDWMWA_USE_IMMERSIVE_DARK_MODE,
+				&darkValue,
+				sizeof(darkValue));
 		}
 	};
 
@@ -545,16 +659,16 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 	// But for now it works event with a small part of that.
 	//
 
-	// const auto updateWindowTheme = [&] {
+	//const auto updateWindowTheme = [&] {
 	//	const auto set = [&](LPCWSTR name) {
 	//		return SetWindowTheme(_hWnd, name, nullptr);
 	//	};
 	//	if (!night || FAILED(set(L"DarkMode_Explorer"))) {
 	//		set(L"Explorer");
 	//	}
-	// };
+	//};
 	//
-	// if (night) {
+	//if (night) {
 	//	if (Dlls::SetPreferredAppMode) {
 	//		Dlls::SetPreferredAppMode(Dlls::PreferredAppMode::AllowDark);
 	//	} else {
@@ -565,7 +679,7 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 	//	updateStyle();
 	//	Dlls::FlushMenuThemes();
 	//	Dlls::RefreshImmersiveColorPolicyState();
-	// } else {
+	//} else {
 	//	updateWindowTheme();
 	//	Dlls::AllowDarkModeForWindow(_hWnd, FALSE);
 	//	updateStyle();
@@ -576,18 +690,19 @@ void MainWindow::validateWindowTheme(bool native, bool night) {
 	//	} else {
 	//		Dlls::AllowDarkModeForApp(FALSE);
 	//	}
-	// }
+	//}
 
 	// Didn't find any other way to definitely repaint with the new style.
 	SendMessage(_hWnd, WM_NCACTIVATE, _hasActiveFrame ? 0 : 1, 0);
 	SendMessage(_hWnd, WM_NCACTIVATE, _hasActiveFrame ? 1 : 0, 0);
 }
 
-HWND MainWindow::psHwnd() const { return _hWnd; }
+HWND MainWindow::psHwnd() const {
+	return _hWnd;
+}
 
 void MainWindow::destroyCachedIcons() {
-	const auto destroy = [](HICON &icon)
-	{
+	const auto destroy = [](HICON &icon) {
 		if (icon) {
 			DestroyIcon(icon);
 			icon = nullptr;
@@ -606,7 +721,7 @@ MainWindow::~MainWindow() {
 
 int32 ScreenNameChecksum(const QString &name) {
 	constexpr int DeviceNameSize = base::array_size(MONITORINFOEX().szDevice);
-	wchar_t buffer[DeviceNameSize] = {0};
+	wchar_t buffer[DeviceNameSize] = { 0 };
 	if (name.size() < DeviceNameSize) {
 		name.toWCharArray(buffer);
 	} else {

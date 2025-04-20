@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -13,7 +13,9 @@
 #include "styles/style_chat.h"
 #include "ui/painter.h"
 
-ImageView::ImageView(QWidget *parent) : RpWidget(parent) {}
+ImageView::ImageView(QWidget *parent)
+	: RpWidget(parent) {
+}
 
 void ImageView::setImage(const QImage &image) {
 	if (this->image == image) {
@@ -37,7 +39,15 @@ void ImageView::setImage(const QImage &image) {
 			return;
 		}
 
-		this->animation.start([=] { update(); }, 0.0, 1.0, 300, anim::easeInCubic);
+		this->animation.start(
+			[=]
+			{
+				update();
+			},
+			0.0,
+			1.0,
+			300,
+			anim::easeInCubic);
 	};
 
 	if (this->image.isNull()) {
@@ -48,7 +58,9 @@ void ImageView::setImage(const QImage &image) {
 	dispatchToMainThread(set, 100);
 }
 
-QImage ImageView::getImage() const { return image; }
+QImage ImageView::getImage() const {
+	return image;
+}
 
 void ImageView::paintEvent(QPaintEvent *e) {
 	Painter p(this);
@@ -91,4 +103,5 @@ void ImageView::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void ImageView::mousePressEvent(QMouseEvent *e) {}
+void ImageView::mousePressEvent(QMouseEvent *e) {
+}

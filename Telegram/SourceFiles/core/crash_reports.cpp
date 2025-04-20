@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/crash_reports.h"
 
+#include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "core/launcher.h"
-#include "platform/platform_specific.h"
 
-#include <mutex>
-#include <new>
 #include <signal.h>
+#include <new>
+#include <mutex>
 
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 #ifdef Q_OS_WIN
@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <new.h>
 
 #pragma warning(push)
-#pragma warning(disable : 4091)
+#pragma warning(disable:4091)
 #include <client/windows/handler/exception_handler.h>
 #pragma warning(pop)
 
@@ -54,7 +54,7 @@ namespace CrashReports {
 namespace {
 
 using Annotations = std::map<std::string, std::string>;
-using AnnotationRefs = std::map<std::string, const QString *>;
+using AnnotationRefs = std::map<std::string, const QString*>;
 
 Annotations ProcessAnnotations;
 AnnotationRefs ProcessAnnotationRefs;
@@ -65,11 +65,12 @@ QString ReportPath;
 FILE *ReportFile = nullptr;
 int ReportFileNo = 0;
 
-void SafeWriteChar(char ch) { fwrite(&ch, 1, 1, ReportFile); }
+void SafeWriteChar(char ch) {
+	fwrite(&ch, 1, 1, ReportFile);
+}
 
-template<bool Unsigned, typename Type>
-struct writeNumberSignAndRemoveIt
-{
+template <bool Unsigned, typename Type>
+struct writeNumberSignAndRemoveIt {
 	static void call(Type &number) {
 		if (number < 0) {
 			SafeWriteChar('-');
@@ -77,13 +78,13 @@ struct writeNumberSignAndRemoveIt
 		}
 	}
 };
-template<typename Type>
-struct writeNumberSignAndRemoveIt<true, Type>
-{
-	static void call(Type &number) {}
+template <typename Type>
+struct writeNumberSignAndRemoveIt<true, Type> {
+	static void call(Type &number) {
+	}
 };
 
-template<typename Type>
+template <typename Type>
 const dump &SafeWriteNumber(const dump &stream, Type number) {
 	if (!ReportFile) return stream;
 
@@ -107,52 +108,48 @@ std::unique_ptr<ReservedMemoryChunk> ReservedMemory;
 void InstallOperatorNewHandler() {
 	ReservedMemory = std::make_unique<ReservedMemoryChunk>();
 #ifdef Q_OS_WIN
-	_set_new_handler(
-		[](size_t requested) -> int
-		{
-			_set_new_handler(nullptr);
-			ReservedMemory.reset();
-			CrashReports::SetAnnotation("Requested", QString::number(requested));
-			Unexpected("Could not allocate!");
-		});
+	_set_new_handler([](size_t requested) -> int {
+		_set_new_handler(nullptr);
+		ReservedMemory.reset();
+		CrashReports::SetAnnotation("Requested", QString::number(requested));
+		Unexpected("Could not allocate!");
+	});
 #else // Q_OS_WIN
-	std::set_new_handler(
-		[]
-		{
-			std::set_new_handler(nullptr);
-			ReservedMemory.reset();
-			Unexpected("Could not allocate!");
-		});
+	std::set_new_handler([] {
+		std::set_new_handler(nullptr);
+		ReservedMemory.reset();
+		Unexpected("Could not allocate!");
+	});
 #endif // Q_OS_WIN
 }
 
 void InstallQtMessageHandler() {
 	static QtMessageHandler original = nullptr;
-	original = qInstallMessageHandler(
-		[](QtMsgType type, const QMessageLogContext &context, const QString &message)
-		{
-			if (original) {
-				original(type, context, message);
-			}
-			if (type == QtFatalMsg) {
-				CrashReports::SetAnnotation("QtFatal", message);
-				Unexpected("Qt FATAL message was generated!");
-			}
-		});
+	original = qInstallMessageHandler([](
+			QtMsgType type,
+			const QMessageLogContext &context,
+			const QString &message) {
+		if (original) {
+			original(type, context, message);
+		}
+		if (type == QtFatalMsg) {
+			CrashReports::SetAnnotation("QtFatal", message);
+			Unexpected("Qt FATAL message was generated!");
+		}
+	});
 }
 
-std::atomic<Qt::HANDLE> ReportingThreadId /* = nullptr*/;
-bool ReportingHeaderWritten /* = false*/;
-const char *BreakpadDumpPath /* = nullptr*/;
-const wchar_t *BreakpadDumpPathW /* = nullptr*/;
+std::atomic<Qt::HANDLE> ReportingThreadId/* = nullptr*/;
+bool ReportingHeaderWritten/* = false*/;
+const char *BreakpadDumpPath/* = nullptr*/;
+const wchar_t *BreakpadDumpPathW/* = nullptr*/;
 
 void WriteReportHeader() {
 	if (ReportingHeaderWritten) {
 		return;
 	}
 	ReportingHeaderWritten = true;
-	const auto dec2hex = [](int value) -> char
-	{
+	const auto dec2hex = [](int value) -> char {
 		if (value >= 0 && value < 10) {
 			return '0' + value;
 		} else if (value >= 10 && value < 16) {
@@ -209,7 +206,7 @@ const int HandledSignals[] = {
 #ifdef Q_OS_WIN
 void SignalHandler(int signum) {
 #else // Q_OS_WIN
-struct sigaction OldSigActions[32] /* = { 0 }*/;
+struct sigaction OldSigActions[32]/* = { 0 }*/;
 
 void RestoreSignalHandlers() {
 	for (const auto signum : HandledSignals) {
@@ -236,15 +233,15 @@ void SignalHandler(int signum, siginfo_t *info, void *ucontext) {
 
 #endif // else for Q_OS_WIN
 
-	const char *name = 0;
+	const char* name = 0;
 	switch (signum) {
-		case SIGABRT: name = "SIGABRT"; break;
-		case SIGSEGV: name = "SIGSEGV"; break;
-		case SIGILL: name = "SIGILL"; break;
-		case SIGFPE: name = "SIGFPE"; break;
+	case SIGABRT: name = "SIGABRT"; break;
+	case SIGSEGV: name = "SIGSEGV"; break;
+	case SIGILL: name = "SIGILL"; break;
+	case SIGFPE: name = "SIGFPE"; break;
 #ifndef Q_OS_WIN
-		case SIGBUS: name = "SIGBUS"; break;
-		case SIGSYS: name = "SIGSYS"; break;
+	case SIGBUS: name = "SIGBUS"; break;
+	case SIGSYS: name = "SIGSYS"; break;
 #endif // !Q_OS_WIN
 	}
 
@@ -264,17 +261,12 @@ void SignalHandler(int signum, siginfo_t *info, void *ucontext) {
 bool SetSignalHandlers = true;
 bool CrashLogged = false;
 #if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
-google_breakpad::ExceptionHandler *BreakpadExceptionHandler = 0;
+google_breakpad::ExceptionHandler* BreakpadExceptionHandler = 0;
 
 #ifdef Q_OS_WIN
-bool DumpCallback(const wchar_t *_dump_dir,
-				  const wchar_t *_minidump_id,
-				  void *context,
-				  EXCEPTION_POINTERS *exinfo,
-				  MDRawAssertionInfo *assertion,
-				  bool success)
+bool DumpCallback(const wchar_t* _dump_dir, const wchar_t* _minidump_id, void* context, EXCEPTION_POINTERS* exinfo, MDRawAssertionInfo* assertion, bool success)
 #elif defined Q_OS_MAC // Q_OS_WIN
-bool DumpCallback(const char *_dump_dir, const char *_minidump_id, void *context, bool success)
+bool DumpCallback(const char* _dump_dir, const char* _minidump_id, void *context, bool success)
 #else // Q_OS_MAC
 bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
 #endif // else for Q_OS_WIN || Q_OS_MAC
@@ -304,9 +296,11 @@ bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, 
 
 QString PlatformString() {
 	if (Platform::IsWindowsStoreBuild()) {
-		return Platform::IsWindowsARM64() ? u"WinStoreARM64"_q
-			: Platform::IsWindows64Bit()  ? u"WinStore64Bit"_q
-										  : u"WinStore32Bit"_q;
+		return Platform::IsWindowsARM64()
+			? u"WinStoreARM64"_q
+			: Platform::IsWindows64Bit()
+			? u"WinStore64Bit"_q
+			: u"WinStore32Bit"_q;
 	} else if (Platform::IsWindows32Bit()) {
 		return u"Windows32Bit"_q;
 	} else if (Platform::IsWindows64Bit()) {
@@ -327,14 +321,14 @@ void StartCatching() {
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
 	ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
-	ProcessAnnotations["Version"] = (cAlphaVersion() ? u"%1 alpha"_q.arg(cAlphaVersion())
-													 : (AppBetaVersion ? u"%1 beta"_q : u"%1"_q).arg(AppVersion))
-										.toUtf8()
-										.constData();
+	ProcessAnnotations["Version"] = (cAlphaVersion()
+		? u"%1 alpha"_q.arg(cAlphaVersion())
+		: (AppBetaVersion
+			? u"%1 beta"_q
+			: u"%1"_q).arg(AppVersion)).toUtf8().constData();
 	ProcessAnnotations["Launched"] = QDateTime::currentDateTime().toString("dd.MM.yyyy hh:mm:ss").toUtf8().constData();
 	ProcessAnnotations["Platform"] = PlatformString().toUtf8().constData();
-	ProcessAnnotations["UserTag"] =
-		QString::number(Core::Launcher::Instance().installationTag(), 16).toUtf8().constData();
+	ProcessAnnotations["UserTag"] = QString::number(Core::Launcher::Instance().installationTag(), 16).toUtf8().constData();
 
 	QString dumpspath = cWorkingDir() + u"tdata/dumps"_q;
 	QDir().mkpath(dumpspath);
@@ -344,38 +338,40 @@ void StartCatching() {
 		dumpspath.toStdWString(),
 		google_breakpad::ExceptionHandler::FilterCallback(nullptr),
 		DumpCallback,
-		(void *) nullptr, // callback_context
+		(void*)nullptr, // callback_context
 		google_breakpad::ExceptionHandler::HANDLER_ALL,
 		MINIDUMP_TYPE(MiniDumpNormal),
-		// MINIDUMP_TYPE(MiniDumpWithFullMemory | MiniDumpWithHandleData | MiniDumpWithThreadInfo |
-		// MiniDumpWithProcessThreadData | MiniDumpWithFullMemoryInfo | MiniDumpWithUnloadedModules |
-		// MiniDumpWithFullAuxiliaryState | MiniDumpIgnoreInaccessibleMemory | MiniDumpWithTokenInformation),
-		(const wchar_t *) nullptr, // pipe_name
-		(const google_breakpad::CustomClientInfo *) nullptr);
+		// MINIDUMP_TYPE(MiniDumpWithFullMemory | MiniDumpWithHandleData | MiniDumpWithThreadInfo | MiniDumpWithProcessThreadData | MiniDumpWithFullMemoryInfo | MiniDumpWithUnloadedModules | MiniDumpWithFullAuxiliaryState | MiniDumpIgnoreInaccessibleMemory | MiniDumpWithTokenInformation),
+		(const wchar_t*)nullptr, // pipe_name
+		(const google_breakpad::CustomClientInfo*)nullptr
+	);
 #elif defined Q_OS_MAC // Q_OS_WIN
 
 #ifdef MAC_USE_BREAKPAD
 #ifndef _DEBUG
-	BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(QFile::encodeName(dumpspath).toStdString(),
-																	 /*FilterCallback*/ 0,
-																	 DumpCallback,
-																	 /*context*/ 0,
-																	 true,
-																	 0);
+	BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
+		QFile::encodeName(dumpspath).toStdString(),
+		/*FilterCallback*/ 0,
+		DumpCallback,
+		/*context*/ 0,
+		true,
+		0
+	);
 #endif // !_DEBUG
 	SetSignalHandlers = false;
 #else // MAC_USE_BREAKPAD
 	crashpad::CrashpadClient crashpad_client;
 	std::string handler = (cExeDir() + cExeName() + u"/Contents/Helpers/crashpad_handler"_q).toUtf8().constData();
 	std::string database = QFile::encodeName(dumpspath).constData();
-	if (crashpad_client.StartHandler(base::FilePath(handler),
-									 base::FilePath(database),
-									 {}, // metrics_dir
-									 std::string(), // url
-									 ProcessAnnotations,
-									 std::vector<std::string>(), // arguments
-									 false, // restartable
-									 false)) { // asynchronous_start
+	if (crashpad_client.StartHandler(
+			base::FilePath(handler),
+			base::FilePath(database),
+			{}, // metrics_dir
+			std::string(), // url
+			ProcessAnnotations,
+			std::vector<std::string>(), // arguments
+			false, // restartable
+			false)) { // asynchronous_start
 	}
 #endif // else for MAC_USE_BREAKPAD
 #else
@@ -385,7 +381,8 @@ void StartCatching() {
 		DumpCallback,
 		/*context*/ 0,
 		true,
-		-1);
+		-1
+	);
 #endif // else for Q_OS_WIN || Q_OS_MAC
 #endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
@@ -413,7 +410,7 @@ StartResult Start() {
 	if (FILE *f = fopen(QFile::encodeName(ReportPath).constData(), "rb")) {
 #endif // else for !Q_OS_WIN
 		QByteArray lastdump;
-		char buffer[256 * 1024] = {0};
+		char buffer[256 * 1024] = { 0 };
 		int32 read = fread(buffer, 1, 256 * 1024, f);
 		if (read > 0) {
 			lastdump.append(buffer, read);
@@ -421,10 +418,8 @@ StartResult Start() {
 		fclose(f);
 
 		LOG(("Opened '%1' for reading, the previous "
-			 "ViGram Desktop launch was not finished properly :( "
-			 "Crash log size: %2")
-				.arg(ReportPath)
-				.arg(lastdump.size()));
+			"AyuGram Desktop launch was not finished properly :( "
+			"Crash log size: %2").arg(ReportPath).arg(lastdump.size()));
 
 		return lastdump;
 	}
@@ -519,15 +514,13 @@ void SetAnnotationHex(const std::string &key, const QString &value) {
 	const auto utf = value.toUtf8();
 	auto buffer = std::string();
 	buffer.reserve(4 * utf.size());
-	const auto hexDigit = [](std::uint8_t value)
-	{
+	const auto hexDigit = [](std::uint8_t value) {
 		if (value >= 10) {
 			return 'A' + (value - 10);
 		}
 		return '0' + value;
 	};
-	const auto appendHex = [&](std::uint8_t value)
-	{
+	const auto appendHex = [&](std::uint8_t value) {
 		buffer.push_back('\\');
 		buffer.push_back('x');
 		buffer.push_back(hexDigit(value / 16));
@@ -582,13 +575,21 @@ const dump &operator<<(const dump &stream, const wchar_t *str) {
 	return stream;
 }
 
-const dump &operator<<(const dump &stream, int num) { return SafeWriteNumber(stream, num); }
+const dump &operator<<(const dump &stream, int num) {
+	return SafeWriteNumber(stream, num);
+}
 
-const dump &operator<<(const dump &stream, unsigned int num) { return SafeWriteNumber(stream, num); }
+const dump &operator<<(const dump &stream, unsigned int num) {
+	return SafeWriteNumber(stream, num);
+}
 
-const dump &operator<<(const dump &stream, unsigned long num) { return SafeWriteNumber(stream, num); }
+const dump &operator<<(const dump &stream, unsigned long num) {
+	return SafeWriteNumber(stream, num);
+}
 
-const dump &operator<<(const dump &stream, unsigned long long num) { return SafeWriteNumber(stream, num); }
+const dump &operator<<(const dump &stream, unsigned long long num) {
+	return SafeWriteNumber(stream, num);
+}
 
 const dump &operator<<(const dump &stream, double num) {
 	if (num < 0) {

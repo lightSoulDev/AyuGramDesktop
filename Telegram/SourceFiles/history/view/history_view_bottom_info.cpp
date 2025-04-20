@@ -7,32 +7,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_bottom_info.h"
 
+#include "ui/chat/message_bubble.h"
+#include "ui/chat/chat_style.h"
+#include "ui/effects/reaction_fly_animation.h"
+#include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
+#include "ui/painter.h"
+#include "lang/lang_keys.h"
+#include "history/history_item_components.h"
+#include "history/history_item.h"
+#include "history/history.h"
+#include "history/view/media/history_view_media.h"
+#include "history/view/history_view_message.h"
+#include "history/view/history_view_cursor_state.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "core/click_handler_types.h"
-#include "data/data_channel.h"
-#include "data/data_message_reactions.h"
-#include "data/data_session.h"
-#include "history/history.h"
-#include "history/history_item.h"
-#include "history/history_item_components.h"
-#include "history/view/history_view_cursor_state.h"
-#include "history/view/history_view_message.h"
-#include "history/view/media/history_view_media.h"
-#include "lang/lang_keys.h"
-#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
+#include "lottie/lottie_icon.h"
+#include "data/data_channel.h"
+#include "data/data_session.h"
+#include "data/data_message_reactions.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h"
-#include "ui/chat/chat_style.h"
-#include "ui/chat/message_bubble.h"
-#include "ui/effects/reaction_fly_animation.h"
-#include "ui/painter.h"
-#include "ui/text/text_options.h"
-#include "ui/text/text_utilities.h"
-#include "window/window_session_controller.h"
 
-// ViGram includes
+// AyuGram includes
 #include "ayu/ayu_settings.h"
 #include "ayu/features/messageshot/message_shot.h"
 #include "core/ui_integration.h"
@@ -41,15 +41,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
-struct BottomInfo::Effect
-{
+struct BottomInfo::Effect {
 	mutable std::unique_ptr<Ui::ReactionFlyAnimation> animation;
 	mutable QImage image;
 	EffectId id = 0;
 };
 
-BottomInfo::BottomInfo(not_null<::Data::Reactions *> reactionsOwner, Data &&data)
-	: _reactionsOwner(reactionsOwner), _data(std::move(data)) {
+BottomInfo::BottomInfo(
+	not_null<::Data::Reactions*> reactionsOwner,
+	Data &&data)
+: _reactionsOwner(reactionsOwner)
+, _data(std::move(data)) {
 	layout();
 }
 
@@ -105,11 +107,16 @@ int BottomInfo::firstLineWidth() const {
 }
 
 bool BottomInfo::isWide() const {
-	return (_data.flags & Data::Flag::Edited) || !_data.author.isEmpty() || !_views.isEmpty() || !_replies.isEmpty() ||
-		_effect;
+	return (_data.flags & Data::Flag::Edited)
+		|| !_data.author.isEmpty()
+		|| !_views.isEmpty()
+		|| !_replies.isEmpty()
+		|| _effect;
 }
 
-TextState BottomInfo::textState(not_null<const Message *> view, QPoint position) const {
+TextState BottomInfo::textState(
+		not_null<const Message*> view,
+		QPoint position) const {
 	const auto item = view->data();
 	auto result = TextState(item);
 	if (const auto link = replayEffectLink(view, position)) {
@@ -123,27 +130,48 @@ TextState BottomInfo::textState(not_null<const Message *> view, QPoint position)
 	}
 	if (!_views.isEmpty()) {
 		const auto viewsWidth = _views.maxWidth();
-		const auto right = width() - withTicksWidth - ((_data.flags & Data::Flag::Pinned) ? st::historyPinWidth : 0) -
-			st::historyViewsSpace - st::historyViewsWidth - viewsWidth;
-		const auto inViews =
-			QRect(right, 0, withTicksWidth + st::historyViewsWidth, st::msgDateFont->height).contains(position);
+		const auto right = width()
+			- withTicksWidth
+			- ((_data.flags & Data::Flag::Pinned) ? st::historyPinWidth : 0)
+			- st::historyViewsSpace
+			- st::historyViewsWidth
+			- viewsWidth;
+		const auto inViews = QRect(
+			right,
+			0,
+			withTicksWidth + st::historyViewsWidth,
+			st::msgDateFont->height
+		).contains(position);
 		if (inViews) {
 			result.customTooltip = true;
-			const auto fullViews = tr::lng_views_tooltip(tr::now, lt_count_decimal, *_data.views);
+			const auto fullViews = tr::lng_views_tooltip(
+				tr::now,
+				lt_count_decimal,
+				*_data.views);
 			const auto fullForwards = _data.forwardsCount
-				? ('\n' + tr::lng_forwards_tooltip(tr::now, lt_count_decimal, *_data.forwardsCount))
+				? ('\n' + tr::lng_forwards_tooltip(
+					tr::now,
+					lt_count_decimal,
+					*_data.forwardsCount))
 				: QString();
 			result.customTooltipText = fullViews + fullForwards;
 		}
 	}
-	const auto inTime = QRect(width() - withTicksWidth, 0, withTicksWidth, st::msgDateFont->height).contains(position);
+	const auto inTime = QRect(
+		width() - withTicksWidth,
+		0,
+		withTicksWidth,
+		st::msgDateFont->height
+	).contains(position);
 	if (inTime) {
 		result.cursor = CursorState::Date;
 	}
 	return result;
 }
 
-ClickHandlerPtr BottomInfo::replayEffectLink(not_null<const Message *> view, QPoint position) const {
+ClickHandlerPtr BottomInfo::replayEffectLink(
+		not_null<const Message*> view,
+		QPoint position) const {
 	if (!_effect) {
 		return nullptr;
 	}
@@ -156,7 +184,11 @@ ClickHandlerPtr BottomInfo::replayEffectLink(not_null<const Message *> view, QPo
 		top += st::msgDateFont->height;
 	}
 	if (_effect) {
-		const auto image = QRect(left, top, st::reactionInfoSize, st::msgDateFont->height);
+		const auto image = QRect(
+			left,
+			top,
+			st::reactionInfoSize,
+			st::msgDateFont->height);
 		if (image.contains(position)) {
 			if (!_replayLink) {
 				_replayLink = replayEffectLink(view);
@@ -167,24 +199,30 @@ ClickHandlerPtr BottomInfo::replayEffectLink(not_null<const Message *> view, QPo
 	return nullptr;
 }
 
-ClickHandlerPtr BottomInfo::replayEffectLink(not_null<const Message *> view) const {
+ClickHandlerPtr BottomInfo::replayEffectLink(
+		not_null<const Message*> view) const {
 	const auto weak = base::make_weak(view);
-	return std::make_shared<LambdaClickHandler>(
-		[=](ClickContext context)
-		{
-			const auto my = context.other.value<ClickHandlerContext>();
-			if (const auto controller = my.sessionWindow.get()) {
-				if (const auto strong = weak.get()) {
-					strong->delegate()->elementStartEffect(strong, nullptr);
-				}
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (const auto strong = weak.get()) {
+				strong->delegate()->elementStartEffect(strong, nullptr);
 			}
-		});
+		}
+	});
 }
 
-bool BottomInfo::isSignedAuthorElided() const { return _authorElided; }
+bool BottomInfo::isSignedAuthorElided() const {
+	return _authorElided;
+}
 
 void BottomInfo::paint(
-	Painter &p, QPoint position, int outerWidth, bool unread, bool inverted, const PaintContext &context) const {
+		Painter &p,
+		QPoint position,
+		int outerWidth,
+		bool unread,
+		bool inverted,
+		const PaintContext &context) const {
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 
@@ -192,45 +230,84 @@ void BottomInfo::paint(
 	const auto firstLineBottom = position.y() + st::msgDateFont->height;
 	if (!AyuFeatures::MessageShot::isTakingShot() && (_data.flags & Data::Flag::OutLayout)) {
 		const auto &icon = (_data.flags & Data::Flag::Sending)
-			? (inverted ? st->historySendingInvertedIcon() : st->historySendingIcon())
-			: unread ? (inverted ? st->historySentInvertedIcon() : stm->historySentIcon)
-					 : (inverted ? st->historyReceivedInvertedIcon() : stm->historyReceivedIcon);
-		icon.paint(p, QPoint(right, firstLineBottom) + st::historySendStatePosition, outerWidth);
+			? (inverted
+				? st->historySendingInvertedIcon()
+				: st->historySendingIcon())
+			: unread
+			? (inverted
+				? st->historySentInvertedIcon()
+				: stm->historySentIcon)
+			: (inverted
+				? st->historyReceivedInvertedIcon()
+				: stm->historyReceivedIcon);
+		icon.paint(
+			p,
+			QPoint(right, firstLineBottom) + st::historySendStatePosition,
+			outerWidth);
 		right -= st::historySendStateSpace;
 	}
 
 	const auto authorEditedWidth = _authorEditedDate.maxWidth();
 	right -= authorEditedWidth;
-	_authorEditedDate.drawLeft(p, right, position.y(), authorEditedWidth, outerWidth);
+	_authorEditedDate.drawLeft(
+		p,
+		right,
+		position.y(),
+		authorEditedWidth,
+		outerWidth);
 
 	if (_data.flags & Data::Flag::Pinned) {
-		const auto &icon = inverted ? st->historyPinInvertedIcon() : stm->historyPinIcon;
+		const auto &icon = inverted
+			? st->historyPinInvertedIcon()
+			: stm->historyPinIcon;
 		right -= st::historyPinWidth;
-		icon.paint(p, right, firstLineBottom + st::historyPinTop, outerWidth);
+		icon.paint(
+			p,
+			right,
+			firstLineBottom + st::historyPinTop,
+			outerWidth);
 	}
 	if (!_views.isEmpty()) {
 		const auto viewsWidth = _views.maxWidth();
 		right -= st::historyViewsSpace + viewsWidth;
 		_views.drawLeft(p, right, position.y(), viewsWidth, outerWidth);
 
-		const auto &icon = inverted ? st->historyViewsInvertedIcon() : stm->historyViewsIcon;
+		const auto &icon = inverted
+			? st->historyViewsInvertedIcon()
+			: stm->historyViewsIcon;
 		right -= st::historyViewsWidth;
-		icon.paint(p, right, firstLineBottom + st::historyViewsTop, outerWidth);
+		icon.paint(
+			p,
+			right,
+			firstLineBottom + st::historyViewsTop,
+			outerWidth);
 	}
 	if (!_replies.isEmpty()) {
 		const auto repliesWidth = _replies.maxWidth();
 		right -= st::historyViewsSpace + repliesWidth;
 		_replies.drawLeft(p, right, position.y(), repliesWidth, outerWidth);
 
-		const auto &icon = inverted ? st->historyRepliesInvertedIcon() : stm->historyRepliesIcon;
+		const auto &icon = inverted
+			? st->historyRepliesInvertedIcon()
+			: stm->historyRepliesIcon;
 		right -= st::historyViewsWidth;
-		icon.paint(p, right, firstLineBottom + st::historyViewsTop, outerWidth);
+		icon.paint(
+			p,
+			right,
+			firstLineBottom + st::historyViewsTop,
+			outerWidth);
 	}
-	if (!AyuFeatures::MessageShot::isTakingShot() && (_data.flags & Data::Flag::Sending) &&
-		!(_data.flags & Data::Flag::OutLayout)) {
+	if (!AyuFeatures::MessageShot::isTakingShot() && (_data.flags & Data::Flag::Sending)
+		&& !(_data.flags & Data::Flag::OutLayout)) {
 		right -= st::historySendStateSpace;
-		const auto &icon = inverted ? st->historyViewsSendingInvertedIcon() : st->historyViewsSendingIcon();
-		icon.paint(p, right, firstLineBottom + st::historyViewsTop, outerWidth);
+		const auto &icon = inverted
+			? st->historyViewsSendingInvertedIcon()
+			: st->historyViewsSendingIcon();
+		icon.paint(
+			p,
+			right,
+			firstLineBottom + st::historyViewsTop,
+			outerWidth);
 	}
 	if (_effect) {
 		auto left = position.x();
@@ -246,10 +323,14 @@ void BottomInfo::paint(
 }
 
 void BottomInfo::paintEffect(
-	Painter &p, QPoint origin, int left, int top, int availableWidth, const PaintContext &context) const {
-	struct SingleAnimation
-	{
-		not_null<Ui::ReactionFlyAnimation *> animation;
+		Painter &p,
+		QPoint origin,
+		int left,
+		int top,
+		int availableWidth,
+		const PaintContext &context) const {
+	struct SingleAnimation {
+		not_null<Ui::ReactionFlyAnimation*> animation;
 		QRect target;
 	};
 	std::vector<SingleAnimation> animations;
@@ -267,12 +348,14 @@ void BottomInfo::paintEffect(
 			widthLeft = availableWidth;
 		}
 		if (_effect->image.isNull()) {
-			_effect->image = _reactionsOwner->resolveEffectImageFor(_effect->id);
+			_effect->image = _reactionsOwner->resolveEffectImageFor(
+				_effect->id);
 		}
-		const auto image = QRect(x + (st::reactionInfoSize - st::effectInfoImage) / 2,
-								 y + (st::msgDateFont->height - st::effectInfoImage) / 2,
-								 st::effectInfoImage,
-								 st::effectInfoImage);
+		const auto image = QRect(
+			x + (st::reactionInfoSize - st::effectInfoImage) / 2,
+			y + (st::msgDateFont->height - st::effectInfoImage) / 2,
+			st::effectInfoImage,
+			st::effectInfoImage);
 		if (!_effect->image.isNull()) {
 			p.drawImage(image.topLeft(), _effect->image);
 		}
@@ -287,16 +370,20 @@ void BottomInfo::paintEffect(
 	}
 	if (!animations.empty()) {
 		const auto now = context.now;
-		context.reactionInfo->effectPaint = [now, origin, list = std::move(animations)](QPainter &p)
-		{
+		context.reactionInfo->effectPaint = [
+			now,
+			origin,
+			list = std::move(animations)
+		](QPainter &p) {
 			auto result = QRect();
 			for (const auto &single : list) {
-				const auto area = single.animation->paintGetArea(p,
-																 origin,
-																 single.target,
-																 QColor(255, 255, 255, 0), // Colored, for emoji status.
-																 QRect(), // Clip, for emoji status.
-																 now);
+				const auto area = single.animation->paintGetArea(
+					p,
+					origin,
+					single.target,
+					QColor(255, 255, 255, 0), // Colored, for emoji status.
+					QRect(), // Clip, for emoji status.
+					now);
 				result = result.isEmpty() ? area : result.united(area);
 			}
 			return result;
@@ -308,10 +395,14 @@ QSize BottomInfo::countCurrentSize(int newWidth) {
 	if (newWidth >= maxWidth() || (_data.flags & Data::Flag::Shortcut)) {
 		return optimalSize();
 	}
-	const auto dateHeight = (_data.flags & Data::Flag::Sponsored) ? 0 : st::msgDateFont->height;
+	const auto dateHeight = (_data.flags & Data::Flag::Sponsored)
+		? 0
+		: st::msgDateFont->height;
 	const auto noReactionsWidth = maxWidth() - _effectMaxWidth;
 	accumulate_min(newWidth, std::max(noReactionsWidth, _effectMaxWidth));
-	return QSize(newWidth, dateHeight + countEffectHeight(newWidth));
+	return QSize(
+		newWidth,
+		dateHeight + countEffectHeight(newWidth));
 }
 
 void BottomInfo::layout() {
@@ -326,40 +417,56 @@ void BottomInfo::layoutDateText() {
 	const auto settings = &AyuSettings::getInstance();
 
 	if (!settings->replaceBottomInfoWithIcons) {
-		const auto deleted = (_data.flags & Data::Flag::AyuDeleted) ? (settings->deletedMark + ' ') : QString();
-		const auto edited = (_data.flags & Data::Flag::Edited) ? (settings->editedMark + ' ')
-			: (_data.flags & Data::Flag::EstimateDate)		   ? (tr::lng_approximate(tr::now) + ' ')
-															   : QString();
+		const auto deleted = (_data.flags & Data::Flag::AyuDeleted)
+								? (settings->deletedMark + ' ')
+								: QString();
+		const auto edited = (_data.flags & Data::Flag::Edited)
+								? (settings->editedMark + ' ')
+								: (_data.flags & Data::Flag::EstimateDate)
+			? (tr::lng_approximate(tr::now) + ' ')
+			: QString();
 		const auto author = _data.author;
 		const auto prefix = !author.isEmpty() ? u", "_q : QString();
-		const auto date = edited +
-			QLocale().toString(_data.date.time(),
-							   settings->showMessageSeconds
-								   ? QLocale::system().timeFormat(QLocale::LongFormat).remove(" t")
-								   : QLocale::system().timeFormat(QLocale::ShortFormat));
+		const auto date = edited + QLocale().toString(
+			_data.date.time(),
+			settings->showMessageSeconds
+				? QLocale::system().timeFormat(QLocale::LongFormat).remove(" t")
+				: QLocale::system().timeFormat(QLocale::ShortFormat)
+		);
 		const auto afterAuthor = prefix + date;
 		const auto afterAuthorWidth = st::msgDateFont->width(afterAuthor);
 		const auto authorWidth = st::msgDateFont->width(author);
 		const auto maxWidth = st::maxSignatureSize;
-		_authorElided = !author.isEmpty() && (authorWidth + afterAuthorWidth > maxWidth);
-		const auto name = _authorElided ? st::msgDateFont->elided(author, maxWidth - afterAuthorWidth) : author;
-		const auto full = (_data.flags & Data::Flag::Sponsored) ? QString()
-			: (_data.flags & Data::Flag::Imported)				? (deleted + date + ' ' + tr::lng_imported(tr::now))
-			: name.isEmpty()									? (deleted + date)
-																: (deleted + name + afterAuthor);
-		auto marked = TextWithEntities{full};
-		if (const auto count = _data.stars) {
-			marked.append(Ui::Text::IconEmoji(&st::starIconEmoji));
-			marked.append(Lang::FormatCountToShort(count).string);
-		}
-		_authorEditedDate.setMarkedText(st::msgDateTextStyle, marked, Ui::NameTextOptions());
+		_authorElided = !author.isEmpty()
+			&& (authorWidth + afterAuthorWidth > maxWidth);
+		const auto name = _authorElided
+			? st::msgDateFont->elided(author, maxWidth - afterAuthorWidth)
+			: author;
+		const auto full = (_data.flags & Data::Flag::Sponsored)
+			? QString()
+			: (_data.flags & Data::Flag::Imported)
+			? (deleted + date + ' ' + tr::lng_imported(tr::now))
+			: name.isEmpty()
+			? (deleted + date)
+			: (deleted + name + afterAuthor);
+		auto marked = TextWithEntities{ full };
+	if (const auto count = _data.stars) {
+		marked.append(Ui::Text::IconEmoji(&st::starIconEmoji));
+		marked.append(Lang::FormatCountToShort(count).string);
+	}
+	_authorEditedDate.setMarkedText(
+			st::msgDateTextStyle,
+			marked,
+			Ui::NameTextOptions());
 	} else {
 		TextWithEntities deleted;
 		if (_data.flags & Data::Flag::AyuDeleted) {
 			const auto &icon = st::deletedIcon;
 			const auto padding = st::deletedIconPadding;
 			const auto owner = &_reactionsOwner->owner();
-			auto added = Ui::Text::SingleCustomEmoji(owner->customEmojiManager().registerInternalEmoji(icon, padding));
+			auto added = Ui::Text::SingleCustomEmoji(
+				owner->customEmojiManager().registerInternalEmoji(icon, padding)
+			);
 			deleted = Ui::Text::Colorized(added, 1);
 			if (!(_data.flags & Data::Flag::Edited)) {
 				deleted.append(' ');
@@ -371,11 +478,13 @@ void BottomInfo::layoutDateText() {
 			const auto &icon = st::editedIcon;
 			const auto padding = st::editedIconPadding;
 			const auto owner = &_reactionsOwner->owner();
-			auto added = Ui::Text::SingleCustomEmoji(owner->customEmojiManager().registerInternalEmoji(icon, padding));
+			auto added = Ui::Text::SingleCustomEmoji(
+				owner->customEmojiManager().registerInternalEmoji(icon, padding)
+			);
 			edited = Ui::Text::Colorized(added, 1);
 			edited.append(' ');
 		} else if (_data.flags & Data::Flag::EstimateDate) {
-			edited = TextWithEntities{tr::lng_approximate(tr::now) + ' '};
+		    edited = TextWithEntities{ tr::lng_approximate(tr::now) + ' ' };
 		}
 
 		const auto author = _data.author;
@@ -383,15 +492,20 @@ void BottomInfo::layoutDateText() {
 
 		const auto date = TextWithEntities{}.append(edited).append(QLocale().toString(
 			_data.date.time(),
-			settings->showMessageSeconds ? QLocale::system().timeFormat(QLocale::LongFormat).remove(" t")
-										 : QLocale::system().timeFormat(QLocale::ShortFormat)));
+			settings->showMessageSeconds
+				? QLocale::system().timeFormat(QLocale::LongFormat).remove(" t")
+				: QLocale::system().timeFormat(QLocale::ShortFormat)
+		));
 
 		const auto afterAuthor = TextWithEntities{}.append(prefix).append(date);
 		const auto afterAuthorWidth = st::msgDateFont->width(afterAuthor.text);
 		const auto authorWidth = st::msgDateFont->width(author);
 		const auto maxWidth = st::maxSignatureSize;
-		_authorElided = !author.isEmpty() && (authorWidth + afterAuthorWidth > maxWidth);
-		const auto name = _authorElided ? st::msgDateFont->elided(author, maxWidth - afterAuthorWidth) : author;
+		_authorElided = !author.isEmpty()
+			&& (authorWidth + afterAuthorWidth > maxWidth);
+		const auto name = _authorElided
+			? st::msgDateFont->elided(author, maxWidth - afterAuthorWidth)
+			: author;
 
 		auto full = TextWithEntities{};
 		if (_data.flags & Data::Flag::Sponsored) {
@@ -410,7 +524,11 @@ void BottomInfo::layoutDateText() {
 			.customEmojiLoopLimit = 0,
 		});
 
-		_authorEditedDate.setMarkedText(st::msgDateTextStyle, full, Ui::NameTextOptions(), context);
+		_authorEditedDate.setMarkedText(
+			st::msgDateTextStyle,
+			full,
+			Ui::NameTextOptions(),
+			context);
 	}
 }
 
@@ -420,16 +538,24 @@ void BottomInfo::layoutViewsText() {
 		return;
 	}
 	_views.setText(
-		st::msgDateTextStyle, Lang::FormatCountToShort(std::max(*_data.views, 1)).string, Ui::NameTextOptions());
+		st::msgDateTextStyle,
+		Lang::FormatCountToShort(std::max(*_data.views, 1)).string,
+		Ui::NameTextOptions());
 }
 
 void BottomInfo::layoutRepliesText() {
-	if (!_data.replies || !*_data.replies || (_data.flags & Data::Flag::RepliesContext) ||
-		(_data.flags & Data::Flag::Sending) || (_data.flags & Data::Flag::Shortcut)) {
+	if (!_data.replies
+		|| !*_data.replies
+		|| (_data.flags & Data::Flag::RepliesContext)
+		|| (_data.flags & Data::Flag::Sending)
+		|| (_data.flags & Data::Flag::Shortcut)) {
 		_replies.clear();
 		return;
 	}
-	_replies.setText(st::msgDateTextStyle, Lang::FormatCountToShort(*_data.replies).string, Ui::NameTextOptions());
+	_replies.setText(
+		st::msgDateTextStyle,
+		Lang::FormatCountToShort(*_data.replies).string,
+		Ui::NameTextOptions());
 }
 
 void BottomInfo::layoutEffectText() {
@@ -442,7 +568,7 @@ void BottomInfo::layoutEffectText() {
 
 QSize BottomInfo::countOptimalSize() {
 	if (_data.flags & Data::Flag::Shortcut) {
-		return {st::historyShortcutStateSpace, st::msgDateFont->height};
+		return { st::historyShortcutStateSpace, st::msgDateFont->height };
 	}
 	auto width = 0;
 	if (!AyuFeatures::MessageShot::isTakingShot() && (_data.flags & (Data::Flag::OutLayout | Data::Flag::Sending))) {
@@ -450,39 +576,52 @@ QSize BottomInfo::countOptimalSize() {
 	}
 	width += _authorEditedDate.maxWidth();
 	if (!_views.isEmpty()) {
-		width += st::historyViewsSpace + _views.maxWidth() + st::historyViewsWidth;
+		width += st::historyViewsSpace
+			+ _views.maxWidth()
+			+ st::historyViewsWidth;
 	}
 	if (!_replies.isEmpty()) {
-		width += st::historyViewsSpace + _replies.maxWidth() + st::historyViewsWidth;
+		width += st::historyViewsSpace
+			+ _replies.maxWidth()
+			+ st::historyViewsWidth;
 	}
 	if (_data.flags & Data::Flag::Pinned) {
 		width += st::historyPinWidth;
 	}
 	_effectMaxWidth = countEffectMaxWidth();
 	width += _effectMaxWidth;
-	const auto dateHeight = (_data.flags & Data::Flag::Sponsored) ? 0 : st::msgDateFont->height;
+	const auto dateHeight = (_data.flags & Data::Flag::Sponsored)
+		? 0
+		: st::msgDateFont->height;
 	return QSize(width, dateHeight);
 }
 
 BottomInfo::Effect BottomInfo::prepareEffectWithId(EffectId id) {
-	auto result = Effect{.id = id};
+	auto result = Effect{ .id = id };
 	_reactionsOwner->preloadEffectImageFor(id);
 	return result;
 }
 
-void BottomInfo::animateEffect(Ui::ReactionFlyAnimationArgs &&args, Fn<void()> repaint) {
+void BottomInfo::animateEffect(
+		Ui::ReactionFlyAnimationArgs &&args,
+		Fn<void()> repaint) {
 	if (!_effect || args.id.custom() != _effect->id) {
 		return;
 	}
 	_effect->animation = std::make_unique<Ui::ReactionFlyAnimation>(
-		_reactionsOwner, args.translated(QPoint(width(), height())), std::move(repaint), st::effectInfoImage);
+		_reactionsOwner,
+		args.translated(QPoint(width(), height())),
+		std::move(repaint),
+		st::effectInfoImage);
 }
 
-auto BottomInfo::takeEffectAnimation() -> std::unique_ptr<Ui::ReactionFlyAnimation> {
+auto BottomInfo::takeEffectAnimation()
+-> std::unique_ptr<Ui::ReactionFlyAnimation> {
 	return _effect ? std::move(_effect->animation) : nullptr;
 }
 
-void BottomInfo::continueEffectAnimation(std::unique_ptr<Ui::ReactionFlyAnimation> animation) {
+void BottomInfo::continueEffectAnimation(
+		std::unique_ptr<Ui::ReactionFlyAnimation> animation) {
 	if (_effect) {
 		_effect->animation = std::move(animation);
 	}
@@ -500,13 +639,14 @@ QRect BottomInfo::effectIconGeometry() const {
 		left += width() - available;
 		top += st::msgDateFont->height;
 	}
-	return QRect(left + (st::reactionInfoSize - st::effectInfoImage) / 2,
-				 top + (st::msgDateFont->height - st::effectInfoImage) / 2,
-				 st::effectInfoImage,
-				 st::effectInfoImage);
+	return QRect(
+		left + (st::reactionInfoSize - st::effectInfoImage) / 2,
+		top + (st::msgDateFont->height - st::effectInfoImage) / 2,
+		st::effectInfoImage,
+		st::effectInfoImage);
 }
 
-BottomInfo::Data BottomInfoDataFromMessage(not_null<Message *> message) {
+BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	using Flag = BottomInfo::Data::Flag;
 	const auto item = message->data();
 
@@ -528,7 +668,9 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message *> message) {
 	if (message->context() == Context::ShortcutMessages) {
 		result.flags |= Flag::Shortcut;
 	}
-	if (!item->isPost() || !item->hasRealFromId() || !item->history()->peer->asChannel()->signatureProfiles()) {
+	if (!item->isPost()
+		|| !item->hasRealFromId()
+		|| !item->history()->peer->asChannel()->signatureProfiles()) {
 		if (const auto msgsigned = item->Get<HistoryMessageSigned>()) {
 			if (!msgsigned->isAnonymousRank) {
 				result.author = msgsigned->author;
@@ -574,7 +716,7 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message *> message) {
 		result.flags |= Flag::AyuDeleted;
 	}
 	// We don't want to pass and update it in Data for now.
-	// if (item->unread()) {
+	//if (item->unread()) {
 	//	result.flags |= Flag::Unread;
 	//}
 	return result;

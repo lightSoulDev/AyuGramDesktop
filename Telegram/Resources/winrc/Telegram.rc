@@ -61,10 +61,10 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Radolyn Labs"
-            VALUE "FileDescription", "ViGram Desktop"
+            VALUE "FileDescription", "AyuGram Desktop"
             VALUE "FileVersion", "5.12.3.0"
             VALUE "LegalCopyright", "Copyright (C) 2014-2025"
-            VALUE "ProductName", "ViGram Desktop"
+            VALUE "ProductName", "AyuGram Desktop"
             VALUE "ProductVersion", "5.12.3.0"
         END
     END

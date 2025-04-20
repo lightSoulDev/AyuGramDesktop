@@ -7,40 +7,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/notifications_manager.h"
 
-#include "api/api_updates.h"
-#include "apiwrap.h"
 #include "base/options.h"
-#include "base/unixtime.h"
-#include "core/application.h"
-#include "data/data_channel.h"
-#include "data/data_document.h"
-#include "data/data_document_media.h"
-#include "data/data_forum_topic.h"
-#include "data/data_poll.h"
-#include "data/data_session.h"
-#include "data/data_user.h"
-#include "data/notify/data_notify_settings.h"
-#include "data/stickers/data_custom_emoji.h"
+#include "platform/platform_notifications_manager.h"
+#include "window/notifications_manager_default.h"
+#include "media/audio/media_audio_track.h"
+#include "media/audio/media_audio.h"
+#include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_replies_section.h"
 #include "lang/lang_keys.h"
-#include "main/main_account.h"
-#include "main/main_domain.h"
-#include "main/main_session.h"
-#include "mainwindow.h"
-#include "media/audio/media_audio.h"
-#include "media/audio/media_audio_track.h"
-#include "mtproto/mtproto_config.h"
-#include "platform/platform_notifications_manager.h"
-#include "ui/text/text_utilities.h"
-#include "window/notifications_manager_default.h"
+#include "data/notify/data_notify_settings.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/data_document_media.h"
+#include "data/data_session.h"
+#include "data/data_channel.h"
+#include "data/data_forum_topic.h"
+#include "data/data_user.h"
+#include "data/data_document.h"
+#include "data/data_poll.h"
+#include "base/unixtime.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "core/application.h"
+#include "mainwindow.h"
+#include "api/api_updates.h"
+#include "apiwrap.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
+#include "main/main_domain.h"
+#include "ui/text/text_utilities.h"
 
 #include <QtGui/QWindow>
 
-// ViGram includes
+// AyuGram includes
 #include "ayu/ayu_settings.h"
 
 
@@ -70,30 +70,39 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 	return result;
 }
 
-[[nodiscard]] QString TextWithForwardedChar(const QString &text, bool forwarded) {
+[[nodiscard]] QString TextWithForwardedChar(
+		const QString &text,
+		bool forwarded) {
 	static const auto result = QString::fromUtf8("\xE2\x9E\xA1\xEF\xB8\x8F");
 	return forwarded ? result + text : text;
 }
 
-[[nodiscard]] QString TextWithPermanentSpoiler(const TextWithEntities &textWithEntities) {
+[[nodiscard]] QString TextWithPermanentSpoiler(
+		const TextWithEntities &textWithEntities) {
 	auto text = textWithEntities.text;
 	for (const auto &e : textWithEntities.entities) {
 		if (e.type() == EntityType::Spoiler) {
 			auto replacement = QString().fill(QChar(0x259A), e.length());
-			text = text.replace(e.offset(), e.length(), std::move(replacement));
+			text = text.replace(
+				e.offset(),
+				e.length(),
+				std::move(replacement));
 		}
 	}
 	return text;
 }
 
-[[nodiscard]] QByteArray ReadRingtoneBytes(const std::shared_ptr<Data::DocumentMedia> &media) {
+[[nodiscard]] QByteArray ReadRingtoneBytes(
+		const std::shared_ptr<Data::DocumentMedia> &media) {
 	const auto result = media->bytes();
 	if (!result.isEmpty()) {
 		return result;
 	}
 	const auto &location = media->owner()->location();
 	if (!location.isEmpty() && location.accessEnable()) {
-		const auto guard = gsl::finally([&] { location.accessDisable(); });
+		const auto guard = gsl::finally([&] {
+			location.accessDisable();
+		});
 		auto f = QFile(location.name());
 		if (f.open(QIODevice::ReadOnly)) {
 			return f.readAll();
@@ -102,14 +111,21 @@ constexpr auto kSystemAlertDuration = crl::time(0);
 	return {};
 }
 
-[[nodiscard]] std::optional<DocumentId> MaybeSoundFor(not_null<Data::Thread *> thread, PeerData *from) {
+[[nodiscard]] std::optional<DocumentId> MaybeSoundFor(
+		not_null<Data::Thread*> thread,
+		PeerData *from) {
 	const auto notifySettings = &thread->owner().notifySettings();
 	const auto threadUnknown = notifySettings->muteUnknown(thread);
-	const auto threadAlert = !threadUnknown && !notifySettings->isMuted(thread);
-	const auto fromUnknown = (!from || notifySettings->muteUnknown(from));
-	const auto fromAlert = !fromUnknown && !notifySettings->isMuted(from);
+	const auto threadAlert = !threadUnknown
+		&& !notifySettings->isMuted(thread);
+	const auto fromUnknown = (!from
+		|| notifySettings->muteUnknown(from));
+	const auto fromAlert = !fromUnknown
+		&& !notifySettings->isMuted(from);
 	const auto &sound = notifySettings->sound(thread);
-	return ((threadAlert || fromAlert) && !sound.none) ? sound.id : std::optional<DocumentId>();
+	return ((threadAlert || fromAlert) && !sound.none)
+		? sound.id
+		: std::optional<DocumentId>();
 }
 
 } // namespace
@@ -120,10 +136,8 @@ base::options::toggle OptionGNotification({
 	.id = kOptionGNotification,
 	.name = "GNotification",
 	.description = "Force enable GLib's GNotification."
-				   " When disabled, autodetect is used.",
-	.scope =
-		[]
-	{
+		" When disabled, autodetect is used.",
+	.scope = [] {
 #if __has_include(<gio/gio.hpp>)
 		using namespace gi::repository;
 		return bool(Gio::Application::get_default());
@@ -134,46 +148,55 @@ base::options::toggle OptionGNotification({
 	.restartRequired = true,
 });
 
-struct System::Waiter
-{
+struct System::Waiter {
 	NotificationInHistoryKey key;
 	UserData *reactionSender = nullptr;
 	Data::ItemNotificationType type = Data::ItemNotificationType::Message;
 	crl::time when = 0;
 };
 
-System::NotificationInHistoryKey::NotificationInHistoryKey(Data::ItemNotification notification)
-	: NotificationInHistoryKey(notification.item->id, notification.type) {}
-
-System::NotificationInHistoryKey::NotificationInHistoryKey(MsgId messageId, Data::ItemNotificationType type)
-	: messageId(messageId), type(type) {}
-
-System::System()
-	: _waitTimer([=] { showNext(); }), _waitForAllGroupedTimer([=] { showGrouped(); }),
-	  _manager(std::make_unique<DummyManager>(this)) {
-	settingsChanged() |
-		rpl::start_with_next(
-			[=](ChangeType type)
-			{
-				if (type == ChangeType::DesktopEnabled) {
-					clearAll();
-				} else if (type == ChangeType::ViewParams) {
-					updateAll();
-				} else if (type == ChangeType::IncludeMuted || type == ChangeType::CountMessages) {
-					Core::App().domain().notifyUnreadBadgeChanged();
-				}
-			},
-			lifetime());
+System::NotificationInHistoryKey::NotificationInHistoryKey(
+	Data::ItemNotification notification)
+: NotificationInHistoryKey(notification.item->id, notification.type) {
 }
 
-void System::createManager() { Platform::Notifications::Create(this); }
+System::NotificationInHistoryKey::NotificationInHistoryKey(
+	MsgId messageId,
+	Data::ItemNotificationType type)
+: messageId(messageId)
+, type(type) {
+}
+
+System::System()
+: _waitTimer([=] { showNext(); })
+, _waitForAllGroupedTimer([=] { showGrouped(); })
+, _manager(std::make_unique<DummyManager>(this)) {
+	settingsChanged(
+	) | rpl::start_with_next([=](ChangeType type) {
+		if (type == ChangeType::DesktopEnabled) {
+			clearAll();
+		} else if (type == ChangeType::ViewParams) {
+			updateAll();
+		} else if (type == ChangeType::IncludeMuted
+			|| type == ChangeType::CountMessages) {
+			Core::App().domain().notifyUnreadBadgeChanged();
+		}
+	}, lifetime());
+}
+
+void System::createManager() {
+	Platform::Notifications::Create(this);
+}
 
 void System::setManager(Fn<std::unique_ptr<Manager>()> create) {
 	Expects(_manager != nullptr);
-	const auto guard = gsl::finally([&] { Ensures(_manager != nullptr); });
+	const auto guard = gsl::finally([&] {
+		Ensures(_manager != nullptr);
+	});
 
-	if ((Core::App().settings().nativeNotifications() || Platform::Notifications::Enforced()) &&
-		Platform::Notifications::Supported()) {
+	if ((Core::App().settings().nativeNotifications()
+				|| Platform::Notifications::Enforced())
+			&& Platform::Notifications::Supported()) {
 		if (_manager->type() == ManagerType::Native) {
 			return;
 		}
@@ -204,14 +227,16 @@ Main::Session *System::findSession(uint64 sessionId) const {
 	return nullptr;
 }
 
-bool System::skipReactionNotification(not_null<HistoryItem *> item) const {
+bool System::skipReactionNotification(not_null<HistoryItem*> item) const {
 	const auto id = ReactionNotificationId{
 		.itemId = item->fullId(),
 		.sessionId = item->history()->session().uniqueId(),
 	};
 	const auto now = crl::now();
 	const auto clearBefore = now - kReactionNotificationEach;
-	for (auto i = begin(_sentReactionNotifications); i != end(_sentReactionNotifications);) {
+	for (auto i = begin(_sentReactionNotifications)
+		; i != end(_sentReactionNotifications)
+		;) {
 		if (i->second <= clearBefore) {
 			i = _sentReactionNotifications.erase(i);
 		} else {
@@ -221,37 +246,49 @@ bool System::skipReactionNotification(not_null<HistoryItem *> item) const {
 	return !_sentReactionNotifications.emplace(id, now).second;
 }
 
-System::SkipState System::skipNotification(Data::ItemNotification notification) const {
+System::SkipState System::skipNotification(
+		Data::ItemNotification notification) const {
 	const auto item = notification.item;
 	const auto type = notification.type;
 	const auto messageType = (type == Data::ItemNotificationType::Message);
-	if (!item->notificationThread()->currentNotification() || (messageType && item->skipNotification()) ||
-		(type == Data::ItemNotificationType::Reaction && skipReactionNotification(item))) {
-		return {SkipState::Skip};
+	if (!item->notificationThread()->currentNotification()
+		|| (messageType && item->skipNotification())
+		|| (type == Data::ItemNotificationType::Reaction
+			&& skipReactionNotification(item))) {
+		return { SkipState::Skip };
 	}
 	return computeSkipState(notification);
 }
 
-System::SkipState System::computeSkipState(Data::ItemNotification notification) const {
+System::SkipState System::computeSkipState(
+		Data::ItemNotification notification) const {
 	const auto type = notification.type;
 	const auto item = notification.item;
 	const auto thread = item->notificationThread();
 	const auto notifySettings = &thread->owner().notifySettings();
 	const auto messageType = (type == Data::ItemNotificationType::Message);
-	const auto withSilent = [&](SkipState::Value value, bool forceSilent = false)
-	{
+	const auto withSilent = [&](
+			SkipState::Value value,
+			bool forceSilent = false) {
 		return SkipState{
 			.value = value,
-			.silent = (forceSilent || !messageType || item->isSilent() || notifySettings->sound(thread).none),
+			.silent = (forceSilent
+				|| !messageType
+				|| item->isSilent()
+				|| notifySettings->sound(thread).none),
 		};
 	};
-	const auto showForMuted = messageType && item->out() && item->isFromScheduled();
-	const auto notifyBy = messageType ? item->specialNotificationPeer() : notification.reactionSender;
+	const auto showForMuted = messageType
+		&& item->out()
+		&& item->isFromScheduled();
+	const auto notifyBy = messageType
+		? item->specialNotificationPeer()
+		: notification.reactionSender;
 	if (Core::Quitting()) {
-		return {SkipState::Skip};
-	} else if (!Core::App().settings().notifyFromAll() &&
-			   &thread->session().account() != &Core::App().domain().active()) {
-		return {SkipState::Skip};
+		return { SkipState::Skip };
+	} else if (!Core::App().settings().notifyFromAll()
+		&& &thread->session().account() != &Core::App().domain().active()) {
+		return { SkipState::Skip };
 	}
 
 	if (messageType) {
@@ -264,22 +301,30 @@ System::SkipState System::computeSkipState(Data::ItemNotification notification) 
 	}
 
 	if (messageType && notifySettings->muteUnknown(thread)) {
-		return {SkipState::Unknown};
+		return { SkipState::Unknown };
 	} else if (messageType && !notifySettings->isMuted(thread)) {
 		return withSilent(SkipState::DontSkip);
 	} else if (!notifyBy) {
-		return withSilent(showForMuted ? SkipState::DontSkip : SkipState::Skip, showForMuted);
-	} else if (notifySettings->muteUnknown(notifyBy) ||
-			   (!messageType && notifyBy->blockStatus() == PeerData::BlockStatus::Unknown)) {
+		return withSilent(
+			showForMuted ? SkipState::DontSkip : SkipState::Skip,
+			showForMuted);
+	} else if (notifySettings->muteUnknown(notifyBy)
+		|| (!messageType
+			&& notifyBy->blockStatus() == PeerData::BlockStatus::Unknown)) {
 		return withSilent(SkipState::Unknown);
-	} else if (!notifySettings->isMuted(notifyBy) && (messageType || !notifyBy->isBlocked())) {
+	} else if (!notifySettings->isMuted(notifyBy)
+		&& (messageType || !notifyBy->isBlocked())) {
 		return withSilent(SkipState::DontSkip);
 	} else {
-		return withSilent(showForMuted ? SkipState::DontSkip : SkipState::Skip, showForMuted);
+		return withSilent(
+			showForMuted ? SkipState::DontSkip : SkipState::Skip,
+			showForMuted);
 	}
 }
 
-System::Timing System::countTiming(not_null<Data::Thread *> thread, crl::time minimalDelay) const {
+System::Timing System::countTiming(
+		not_null<Data::Thread*> thread,
+		crl::time minimalDelay) const {
 	auto delay = minimalDelay;
 	const auto t = base::unixtime::now();
 	const auto ms = crl::now();
@@ -305,11 +350,13 @@ System::Timing System::countTiming(not_null<Data::Thread *> thread, crl::time mi
 	};
 }
 
-void System::registerThread(not_null<Data::Thread *> thread) {
+void System::registerThread(not_null<Data::Thread*> thread) {
 	if (const auto topic = thread->asTopic()) {
 		const auto &[i, ok] = _watchedTopics.emplace(topic, rpl::lifetime());
 		if (ok) {
-			topic->destroyed() | rpl::start_with_next([=] { clearFromTopic(topic); }, i->second);
+			topic->destroyed() | rpl::start_with_next([=] {
+				clearFromTopic(topic);
+			}, i->second);
 		}
 	}
 }
@@ -325,24 +372,30 @@ void System::schedule(Data::ItemNotification notification) {
 		thread->popNotification(notification);
 		return;
 	}
-	const auto ready = (skip.value != SkipState::Unknown) && item->notificationReady();
+	const auto ready = (skip.value != SkipState::Unknown)
+		&& item->notificationReady();
 
-	const auto minimalDelay = (type == Data::ItemNotificationType::Reaction) ? kMinimalDelay
-		: item->Has<HistoryMessageForwarded>()								 ? kMinimalForwardDelay
-																			 : kMinimalDelay;
+	const auto minimalDelay = (type == Data::ItemNotificationType::Reaction)
+		? kMinimalDelay
+		: item->Has<HistoryMessageForwarded>()
+		? kMinimalForwardDelay
+		: kMinimalDelay;
 	const auto timing = countTiming(thread, minimalDelay);
-	const auto notifyBy =
-		(type == Data::ItemNotificationType::Message) ? item->specialNotificationPeer() : notification.reactionSender;
+	const auto notifyBy = (type == Data::ItemNotificationType::Message)
+		? item->specialNotificationPeer()
+		: notification.reactionSender;
 	if (!skip.silent) {
 		registerThread(thread);
 		_whenAlerts[thread].emplace(timing.when, notifyBy);
 	}
 	if (const auto user = item->history()->peer->asUser()) {
-		if (user->hasStarsPerMessage() && !user->messageMoneyRestrictionsKnown()) {
+		if (user->hasStarsPerMessage()
+			&& !user->messageMoneyRestrictionsKnown()) {
 			user->updateFull();
 		}
 	}
-	if (Core::App().settings().desktopNotify() && !_manager->skipToast()) {
+	if (Core::App().settings().desktopNotify()
+		&& !_manager->skipToast()) {
 		registerThread(thread);
 		const auto key = NotificationInHistoryKey(notification);
 		auto &whenMap = _whenMaps[thread];
@@ -353,17 +406,17 @@ void System::schedule(Data::ItemNotification notification) {
 		auto &addTo = ready ? _waiters : _settingWaiters;
 		const auto it = addTo.find(thread);
 		if (it == addTo.end() || it->second.when > timing.when) {
-			addTo.emplace(thread,
-						  Waiter{
-							  .key = key,
-							  .reactionSender = notification.reactionSender,
-							  .type = notification.type,
-							  .when = timing.when,
-						  });
+			addTo.emplace(thread, Waiter{
+				.key = key,
+				.reactionSender = notification.reactionSender,
+				.type = notification.type,
+				.when = timing.when,
+			});
 		}
 	}
 	if (ready) {
-		if (!_waitTimer.isActive() || _waitTimer.remainingTime() > timing.delay) {
+		if (!_waitTimer.isActive()
+			|| _waitTimer.remainingTime() > timing.delay) {
 			_waitTimer.callOnce(timing.delay);
 		}
 	}
@@ -384,7 +437,7 @@ void System::clearAll() {
 	_watchedTopics.clear();
 }
 
-void System::clearFromTopic(not_null<Data::ForumTopic *> topic) {
+void System::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 	if (_manager) {
 		_manager->clearFromTopic(topic);
 	}
@@ -401,7 +454,7 @@ void System::clearFromTopic(not_null<Data::ForumTopic *> topic) {
 	showNext();
 }
 
-void System::clearForThreadIf(Fn<bool(not_null<Data::Thread *>)> predicate) {
+void System::clearForThreadIf(Fn<bool(not_null<Data::Thread*>)> predicate) {
 	for (auto i = _whenMaps.begin(); i != _whenMaps.end();) {
 		const auto thread = i->first;
 		if (!predicate(thread)) {
@@ -418,8 +471,7 @@ void System::clearForThreadIf(Fn<bool(not_null<Data::Thread *>)> predicate) {
 			_watchedTopics.remove(topic);
 		}
 	}
-	const auto clearFrom = [&](auto &map)
-	{
+	const auto clearFrom = [&](auto &map) {
 		for (auto i = map.begin(); i != map.end();) {
 			const auto thread = i->first;
 			if (predicate(thread)) {
@@ -440,21 +492,25 @@ void System::clearForThreadIf(Fn<bool(not_null<Data::Thread *>)> predicate) {
 	showNext();
 }
 
-void System::clearFromHistory(not_null<History *> history) {
+void System::clearFromHistory(not_null<History*> history) {
 	if (_manager) {
 		_manager->clearFromHistory(history);
 	}
-	clearForThreadIf([&](not_null<Data::Thread *> thread) { return (thread->owningHistory() == history); });
+	clearForThreadIf([&](not_null<Data::Thread*> thread) {
+		return (thread->owningHistory() == history);
+	});
 }
 
-void System::clearFromSession(not_null<Main::Session *> session) {
+void System::clearFromSession(not_null<Main::Session*> session) {
 	if (_manager) {
 		_manager->clearFromSession(session);
 	}
-	clearForThreadIf([&](not_null<Data::Thread *> thread) { return (&thread->session() == session); });
+	clearForThreadIf([&](not_null<Data::Thread*> thread) {
+		return (&thread->session() == session);
+	});
 }
 
-void System::clearIncomingFromHistory(not_null<History *> history) {
+void System::clearIncomingFromHistory(not_null<History*> history) {
 	if (_manager) {
 		_manager->clearFromHistory(history);
 	}
@@ -462,7 +518,7 @@ void System::clearIncomingFromHistory(not_null<History *> history) {
 	_whenAlerts.remove(history);
 }
 
-void System::clearIncomingFromTopic(not_null<Data::ForumTopic *> topic) {
+void System::clearIncomingFromTopic(not_null<Data::ForumTopic*> topic) {
 	if (_manager) {
 		_manager->clearFromTopic(topic);
 	}
@@ -470,7 +526,7 @@ void System::clearIncomingFromTopic(not_null<Data::ForumTopic *> topic) {
 	_whenAlerts.remove(topic);
 }
 
-void System::clearFromItem(not_null<HistoryItem *> item) {
+void System::clearFromItem(not_null<HistoryItem*> item) {
 	if (_manager) {
 		_manager->clearFromItem(item);
 	}
@@ -490,8 +546,7 @@ void System::clearAllFast() {
 
 void System::checkDelayed() {
 	for (auto i = _settingWaiters.begin(); i != _settingWaiters.end();) {
-		const auto remove = [&]
-		{
+		const auto remove = [&] {
 			const auto thread = i->first;
 			const auto peer = thread->peer();
 			const auto fullId = FullMsgId(peer->id, i->second.key.messageId);
@@ -506,7 +561,8 @@ void System::checkDelayed() {
 			});
 			if (state.value == SkipState::Skip) {
 				return true;
-			} else if (state.value == SkipState::Unknown || !item->notificationReady()) {
+			} else if (state.value == SkipState::Unknown
+				|| !item->notificationReady()) {
 				return false;
 			}
 			_waiters.emplace(i->first, i->second);
@@ -548,21 +604,23 @@ void System::showNext() {
 		return;
 	}
 
-	const auto isSameGroup = [=](HistoryItem *item)
-	{
+	const auto isSameGroup = [=](HistoryItem *item) {
 		if (!_lastHistorySessionId || !_lastHistoryItemId || !item) {
 			return false;
-		} else if (item->history()->session().uniqueId() != _lastHistorySessionId) {
+		} else if (item->history()->session().uniqueId()
+			!= _lastHistorySessionId) {
 			return false;
 		}
-		const auto lastItem = item->history()->owner().message(_lastHistoryItemId);
+		const auto lastItem = item->history()->owner().message(
+			_lastHistoryItemId);
 		if (lastItem) {
-			return (lastItem->groupId() == item->groupId()) || (lastItem->author() == item->author());
+			return (lastItem->groupId() == item->groupId())
+				|| (lastItem->author() == item->author());
 		}
 		return false;
 	};
 	auto ms = crl::now(), nextAlert = crl::time(0);
-	auto alertThread = (Data::Thread *) nullptr;
+	auto alertThread = (Data::Thread*)nullptr;
 	auto alertSoundId = std::optional<DocumentId>();
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
@@ -572,7 +630,8 @@ void System::showNext() {
 				alertThread = thread;
 				alertSoundId = soundId;
 			}
-			while (!i->second.empty() && i->second.begin()->first <= ms + kMinimalAlertDelay) {
+			while (!i->second.empty()
+				&& i->second.begin()->first <= ms + kMinimalAlertDelay) {
 				i->second.erase(i->second.begin());
 			}
 		}
@@ -591,33 +650,30 @@ void System::showNext() {
 			const auto peer = alertThread->peer();
 			if (const auto window = Core::App().windowFor(peer)) {
 				if (const auto controller = window->sessionController()) {
-					_manager->maybeFlashBounce(crl::guard(controller,
-														  [=]
-														  {
-															  if (const auto handle =
-																	  window->widget()->windowHandle()) {
-																  handle->alert(kSystemAlertDuration);
-																  // (handle, SLOT(_q_clearAlert())); in the future.
-															  }
-														  }));
+					_manager->maybeFlashBounce(crl::guard(controller, [=] {
+						if (const auto handle = window->widget()->windowHandle()) {
+							handle->alert(kSystemAlertDuration);
+							// (handle, SLOT(_q_clearAlert())); in the future.
+						}
+					}));
 				}
 			}
 		}
 		if (settings.soundNotify()) {
 			const auto owner = &alertThread->owner();
 			const auto id = owner->notifySettings().sound(alertThread).id;
-			_manager->maybePlaySound(crl::guard(&owner->session(),
-												[=]
-												{
-													const auto track = lookupSound(owner, id);
-													track->playOnce();
-													Media::Player::mixer()->suppressAll(track->getLengthMs());
-													Media::Player::mixer()->scheduleFaderCallback();
-												}));
+			_manager->maybePlaySound(crl::guard(&owner->session(), [=] {
+				const auto track = lookupSound(owner, id);
+				track->playOnce();
+				Media::Player::mixer()->suppressAll(track->getLengthMs());
+				Media::Player::mixer()->scheduleFaderCallback();
+			}));
 		}
 	}
 
-	if (_waiters.empty() || !settings.desktopNotify() || _manager->skipToast()) {
+	if (_waiters.empty()
+		|| !settings.desktopNotify()
+		|| _manager->skipToast()) {
 		if (nextAlert) {
 			_waitTimer.callOnce(nextAlert - ms);
 		}
@@ -627,7 +683,7 @@ void System::showNext() {
 	while (true) {
 		auto next = 0LL;
 		auto notify = std::optional<Data::ItemNotification>();
-		auto notifyThread = (Data::Thread *) nullptr;
+		auto notifyThread = (Data::Thread*)nullptr;
 		for (auto i = _waiters.begin(); i != _waiters.end();) {
 			const auto thread = i->first;
 			auto current = thread->currentNotification();
@@ -657,7 +713,8 @@ void System::showNext() {
 			auto when = i->second.when;
 			if (!notify || next > when) {
 				next = when;
-				notify = current, notifyThread = thread;
+				notify = current,
+				notifyThread = thread;
 			}
 			++i;
 		}
@@ -673,12 +730,17 @@ void System::showNext() {
 		}
 		const auto notifyItem = notify->item;
 		const auto notifySilent = computeSkipState(*notify).silent;
-		const auto messageType = (notify->type == Data::ItemNotificationType::Message);
-		const auto isForwarded = messageType && notifyItem->Has<HistoryMessageForwarded>();
-		const auto isAlbum = messageType && notifyItem->groupId();
+		const auto messageType = (notify->type
+			== Data::ItemNotificationType::Message);
+		const auto isForwarded = messageType
+			&& notifyItem->Has<HistoryMessageForwarded>();
+		const auto isAlbum = messageType
+			&& notifyItem->groupId();
 
 		// Forwarded and album notify grouping.
-		auto groupedItem = (isForwarded || isAlbum) ? notifyItem.get() : nullptr;
+		auto groupedItem = (isForwarded || isAlbum)
+			? notifyItem.get()
+			: nullptr;
 		auto forwardedCount = isForwarded ? 1 : 0;
 
 		const auto thread = notifyItem->notificationThread();
@@ -698,10 +760,14 @@ void System::showNext() {
 					notify->type,
 				});
 				do {
-					const auto k = j->second.find(thread->currentNotification());
+					const auto k = j->second.find(
+						thread->currentNotification());
 					if (k != j->second.cend()) {
 						nextNotify = thread->currentNotification();
-						_waiters.emplace(notifyThread, Waiter{.key = k->first, .when = k->second});
+						_waiters.emplace(notifyThread, Waiter{
+							.key = k->first,
+							.when = k->second
+						});
 						break;
 					}
 					thread->skipNotification();
@@ -709,18 +775,26 @@ void System::showNext() {
 				if (!nextNotify || !groupedItem) {
 					break;
 				}
-				const auto nextMessageNotification = (nextNotify->type == Data::ItemNotificationType::Message);
-				const auto canNextBeGrouped = nextMessageNotification &&
-					((isForwarded && nextNotify->item->Has<HistoryMessageForwarded>()) ||
-					 (isAlbum && nextNotify->item->groupId()));
-				const auto nextItem = canNextBeGrouped ? nextNotify->item.get() : nullptr;
-				if (nextItem && qAbs(int64(nextItem->date()) - int64(groupedItem->date())) < 2) {
-					if (isForwarded && groupedItem->author() == nextItem->author()) {
+				const auto nextMessageNotification
+					= (nextNotify->type
+						== Data::ItemNotificationType::Message);
+				const auto canNextBeGrouped = nextMessageNotification
+					&& ((isForwarded
+						&& nextNotify->item->Has<HistoryMessageForwarded>())
+						|| (isAlbum && nextNotify->item->groupId()));
+				const auto nextItem = canNextBeGrouped
+					? nextNotify->item.get()
+					: nullptr;
+				if (nextItem
+					&& qAbs(int64(nextItem->date()) - int64(groupedItem->date())) < 2) {
+					if (isForwarded
+						&& groupedItem->author() == nextItem->author()) {
 						++forwardedCount;
 						groupedItem = nextItem;
 						continue;
 					}
-					if (isAlbum && groupedItem->groupId() == nextItem->groupId()) {
+					if (isAlbum
+						&& groupedItem->groupId() == nextItem->groupId()) {
 						groupedItem = nextItem;
 						continue;
 					}
@@ -732,8 +806,9 @@ void System::showNext() {
 		if (!_lastHistoryItemId && groupedItem) {
 			_lastHistorySessionId = groupedItem->history()->session().uniqueId();
 			_lastHistoryItemId = groupedItem->fullId();
-			_lastSoundId =
-				notifySilent ? std::nullopt : MaybeSoundFor(notifyThread, groupedItem->specialNotificationPeer());
+			_lastSoundId = notifySilent ? std::nullopt : MaybeSoundFor(
+				notifyThread,
+				groupedItem->specialNotificationPeer());
 		}
 
 		// If the current notification is grouped.
@@ -752,26 +827,32 @@ void System::showNext() {
 			_lastForwardedCount += forwardedCount;
 			_lastHistorySessionId = groupedItem->history()->session().uniqueId();
 			_lastHistoryItemId = groupedItem->fullId();
-			_lastSoundId =
-				notifySilent ? std::nullopt : MaybeSoundFor(notifyThread, groupedItem->specialNotificationPeer());
+			_lastSoundId = notifySilent ? std::nullopt : MaybeSoundFor(
+				notifyThread,
+				groupedItem->specialNotificationPeer());
 			_waitForAllGroupedTimer.callOnce(kWaitingForAllGroupedDelay);
 		} else {
 			// If the current notification is not grouped
 			// then there is no reason to wait for the timer
 			// to show the previous notification.
 			showGrouped();
-			const auto reactionNotification = (notify->type == Data::ItemNotificationType::Reaction);
-			const auto reaction =
-				reactionNotification ? notify->item->lookupUnreadReaction(notify->reactionSender) : Data::ReactionId();
-			const auto soundFrom =
-				reactionNotification ? notify->reactionSender : notify->item->specialNotificationPeer();
+			const auto reactionNotification
+				= (notify->type == Data::ItemNotificationType::Reaction);
+			const auto reaction = reactionNotification
+				? notify->item->lookupUnreadReaction(notify->reactionSender)
+				: Data::ReactionId();
+			const auto soundFrom = reactionNotification
+				? notify->reactionSender
+				: notify->item->specialNotificationPeer();
 			if (!reactionNotification || !reaction.empty()) {
 				_manager->showNotification({
 					.item = notify->item,
 					.forwardedCount = forwardedCount,
 					.reactionFrom = notify->reactionSender,
 					.reactionId = reaction,
-					.soundId = (notifySilent ? std::nullopt : MaybeSoundFor(notifyThread, soundFrom)),
+					.soundId = (notifySilent
+						? std::nullopt
+						: MaybeSoundFor(notifyThread, soundFrom)),
 				});
 			}
 		}
@@ -786,7 +867,9 @@ void System::showNext() {
 	}
 }
 
-QByteArray System::lookupSoundBytes(not_null<Data::Session *> owner, DocumentId id) {
+QByteArray System::lookupSoundBytes(
+		not_null<Data::Session*> owner,
+		DocumentId id) {
 	if (id) {
 		const auto &notifySettings = owner->notifySettings();
 		const auto custom = notifySettings.lookupRingtone(id);
@@ -803,7 +886,9 @@ QByteArray System::lookupSoundBytes(not_null<Data::Session *> owner, DocumentId 
 	Unexpected("Embedded sound not found!");
 }
 
-not_null<Media::Audio::Track *> System::lookupSound(not_null<Data::Session *> owner, DocumentId id) {
+not_null<Media::Audio::Track*> System::lookupSound(
+		not_null<Data::Session*> owner,
+		DocumentId id) {
 	if (!id) {
 		ensureSoundCreated();
 		return _soundTrack.get();
@@ -814,7 +899,10 @@ not_null<Media::Audio::Track *> System::lookupSound(not_null<Data::Session *> ow
 	}
 	const auto bytes = lookupSoundBytes(owner, id);
 	if (!bytes.isEmpty()) {
-		const auto j = _customSoundTracks.emplace(id, Media::Audio::Current().createTrack()).first;
+		const auto j = _customSoundTracks.emplace(
+			id,
+			Media::Audio::Current().createTrack()
+		).first;
 		j->second->fillFromData(bytes::make_vector(bytes));
 		return j->second.get();
 	}
@@ -828,7 +916,8 @@ void System::ensureSoundCreated() {
 	}
 
 	_soundTrack = Media::Audio::Current().createTrack();
-	_soundTrack->fillFromFile(Core::App().settings().getSoundPath(u"msg_incoming"_q));
+	_soundTrack->fillFromFile(
+		Core::App().settings().getSoundPath(u"msg_incoming"_q));
 }
 
 void System::updateAll() {
@@ -837,57 +926,97 @@ void System::updateAll() {
 	}
 }
 
-rpl::producer<ChangeType> System::settingsChanged() const { return _settingsChanged.events(); }
+rpl::producer<ChangeType> System::settingsChanged() const {
+	return _settingsChanged.events();
+}
 
-void System::notifySettingsChanged(ChangeType type) { return _settingsChanged.fire(std::move(type)); }
+void System::notifySettingsChanged(ChangeType type) {
+	return _settingsChanged.fire(std::move(type));
+}
 
-void System::playSound(not_null<Main::Session *> session, DocumentId id) {
+void System::playSound(not_null<Main::Session*> session, DocumentId id) {
 	lookupSound(&session->data(), id)->playOnce();
 }
 
-Manager::DisplayOptions Manager::getNotificationOptions(HistoryItem *item, Data::ItemNotificationType type) const {
-	const auto hideEverything = Core::App().passcodeLocked() || forceHideDetails();
+Manager::DisplayOptions Manager::getNotificationOptions(
+		HistoryItem *item,
+		Data::ItemNotificationType type) const {
+	const auto hideEverything = Core::App().passcodeLocked()
+		|| forceHideDetails();
 	const auto view = Core::App().settings().notifyView();
 	const auto peer = item ? item->history()->peer.get() : nullptr;
 	const auto topic = item ? item->topic() : nullptr;
 
 	auto result = DisplayOptions();
-	result.hideNameAndPhoto = hideEverything || (view > Core::Settings::NotifyView::ShowName);
-	result.hideMessageText = hideEverything || (view > Core::Settings::NotifyView::ShowPreview);
-	result.hideMarkAsRead = result.hideMessageText || (type != Data::ItemNotificationType::Message) || !item ||
-		((item->out() || peer->isSelf()) && item->isFromScheduled());
-	result.hideReplyButton = result.hideMarkAsRead ||
-		(!Data::CanSendTexts(peer) && (!topic || !Data::CanSendTexts(topic))) || peer->isBroadcast() ||
-		(peer->slowmodeSecondsLeft() > 0) || (peer->starsPerMessageChecked() > 0);
-	result.spoilerLoginCode = item && !item->out() && peer->isNotificationsUser() && Core::App().isSharingScreen();
+	result.hideNameAndPhoto = hideEverything
+		|| (view > Core::Settings::NotifyView::ShowName);
+	result.hideMessageText = hideEverything
+		|| (view > Core::Settings::NotifyView::ShowPreview);
+	result.hideMarkAsRead = result.hideMessageText
+		|| (type != Data::ItemNotificationType::Message)
+		|| !item
+		|| ((item->out() || peer->isSelf()) && item->isFromScheduled());
+	result.hideReplyButton = result.hideMarkAsRead
+		|| (!Data::CanSendTexts(peer)
+			&& (!topic || !Data::CanSendTexts(topic)))
+		|| peer->isBroadcast()
+		|| (peer->slowmodeSecondsLeft() > 0)
+		|| (peer->starsPerMessageChecked() > 0);
+	result.spoilerLoginCode = item
+		&& !item->out()
+		&& peer->isNotificationsUser()
+		&& Core::App().isSharingScreen();
 	return result;
 }
 
-TextWithEntities Manager::ComposeReactionEmoji(not_null<Main::Session *> session, const Data::ReactionId &reaction) {
+TextWithEntities Manager::ComposeReactionEmoji(
+		not_null<Main::Session*> session,
+		const Data::ReactionId &reaction) {
 	if (const auto emoji = std::get_if<QString>(&reaction.data)) {
-		return TextWithEntities{*emoji};
+		return TextWithEntities{ *emoji };
 	}
 	const auto id = v::get<DocumentId>(reaction.data);
 	const auto document = session->data().document(id);
 	const auto sticker = document->sticker();
 	const auto text = sticker ? sticker->alt : PlaceholderReactionText();
-	return TextWithEntities{text,
-							{EntityInText(EntityType::CustomEmoji, 0, text.size(), Data::SerializeCustomEmojiId(id))}};
+	return TextWithEntities{
+		text,
+		{
+			EntityInText(
+				EntityType::CustomEmoji,
+				0,
+				text.size(),
+				Data::SerializeCustomEmojiId(id))
+		}
+	};
 }
 
-TextWithEntities
-Manager::ComposeReactionNotification(not_null<HistoryItem *> item, const Data::ReactionId &reaction, bool hideContent) {
-	const auto reactionWithEntities = ComposeReactionEmoji(&item->history()->session(), reaction);
-	const auto simple = [&](const auto &phrase)
-	{ return phrase(tr::now, lt_reaction, reactionWithEntities, Ui::Text::WithEntities); };
+TextWithEntities Manager::ComposeReactionNotification(
+		not_null<HistoryItem*> item,
+		const Data::ReactionId &reaction,
+		bool hideContent) {
+	const auto reactionWithEntities = ComposeReactionEmoji(
+		&item->history()->session(),
+		reaction);
+	const auto simple = [&](const auto &phrase) {
+		return phrase(
+			tr::now,
+			lt_reaction,
+			reactionWithEntities,
+			Ui::Text::WithEntities);
+	};
 	if (hideContent) {
 		return simple(tr::lng_reaction_notext);
 	}
 	const auto media = item->media();
-	const auto text = [&]
-	{
+	const auto text = [&] {
 		return tr::lng_reaction_text(
-			tr::now, lt_reaction, reactionWithEntities, lt_text, item->notificationText(), Ui::Text::WithEntities);
+			tr::now,
+			lt_reaction,
+			reactionWithEntities,
+			lt_text,
+			item->notificationText(),
+			Ui::Text::WithEntities);
 	};
 	if (!media || media->webpage()) {
 		return text();
@@ -903,27 +1032,46 @@ Manager::ComposeReactionNotification(not_null<HistoryItem *> item, const Data::R
 		} else if (document->isVideoFile()) {
 			return simple(tr::lng_reaction_video);
 		} else if (const auto sticker = document->sticker()) {
-			return tr::lng_reaction_sticker(tr::now,
-											lt_reaction,
-											reactionWithEntities,
-											lt_emoji,
-											Ui::Text::WithEntities(sticker->alt),
-											Ui::Text::WithEntities);
+			return tr::lng_reaction_sticker(
+				tr::now,
+				lt_reaction,
+				reactionWithEntities,
+				lt_emoji,
+				Ui::Text::WithEntities(sticker->alt),
+				Ui::Text::WithEntities);
 		}
 		return simple(tr::lng_reaction_document);
 	} else if (const auto contact = media->sharedContact()) {
-		const auto name = contact->firstName.isEmpty() ? contact->lastName
+		const auto name = contact->firstName.isEmpty()
+			? contact->lastName
 			: contact->lastName.isEmpty()
 			? contact->firstName
-			: tr::lng_full_name(tr::now, lt_first_name, contact->firstName, lt_last_name, contact->lastName);
+			: tr::lng_full_name(
+				tr::now,
+				lt_first_name,
+				contact->firstName,
+				lt_last_name,
+				contact->lastName);
 		return tr::lng_reaction_contact(
-			tr::now, lt_reaction, reactionWithEntities, lt_name, Ui::Text::WithEntities(name), Ui::Text::WithEntities);
+			tr::now,
+			lt_reaction,
+			reactionWithEntities,
+			lt_name,
+			Ui::Text::WithEntities(name),
+			Ui::Text::WithEntities);
 	} else if (media->location()) {
 		return simple(tr::lng_reaction_location);
 		// lng_reaction_live_location not used right now :(
 	} else if (const auto poll = media->poll()) {
-		return (poll->quiz() ? tr::lng_reaction_quiz : tr::lng_reaction_poll)(
-			tr::now, lt_reaction, reactionWithEntities, lt_title, poll->question, Ui::Text::WithEntities);
+		return (poll->quiz()
+			? tr::lng_reaction_quiz
+			: tr::lng_reaction_poll)(
+				tr::now,
+				lt_reaction,
+				reactionWithEntities,
+				lt_title,
+				poll->question,
+				Ui::Text::WithEntities);
 	} else if (media->game()) {
 		return simple(tr::lng_reaction_game);
 	} else if (media->invoice()) {
@@ -932,9 +1080,10 @@ Manager::ComposeReactionNotification(not_null<HistoryItem *> item, const Data::R
 	return text();
 }
 
-TextWithEntities Manager::addTargetAccountName(TextWithEntities title, not_null<Main::Session *> session) {
-	const auto add = [&]
-	{
+TextWithEntities Manager::addTargetAccountName(
+		TextWithEntities title,
+		not_null<Main::Session*> session) {
+	const auto add = [&] {
 		for (const auto &[index, account] : Core::App().domain().accounts()) {
 			if (const auto other = account->maybeSession()) {
 				if (other != session) {
@@ -947,17 +1096,25 @@ TextWithEntities Manager::addTargetAccountName(TextWithEntities title, not_null<
 	if (!add) {
 		return title;
 	}
-	return title.append(accountNameSeparator())
-		.append((session->user()->username().isEmpty() ? session->user()->name() : session->user()->username()));
+	return title.append(accountNameSeparator()).append(
+		(session->user()->username().isEmpty()
+			? session->user()->name()
+			: session->user()->username()));
 }
 
-QString Manager::addTargetAccountName(const QString &title, not_null<Main::Session *> session) {
-	return addTargetAccountName(TextWithEntities{title}, session).text;
+QString Manager::addTargetAccountName(
+		const QString &title,
+		not_null<Main::Session*> session) {
+	return addTargetAccountName(TextWithEntities{ title }, session).text;
 }
 
-QString Manager::accountNameSeparator() { return QString::fromUtf8(" \xE2\x9E\x9C "); }
+QString Manager::accountNameSeparator() {
+	return QString::fromUtf8(" \xE2\x9E\x9C ");
+}
 
-void Manager::notificationActivated(NotificationId id, const TextWithTags &reply) {
+void Manager::notificationActivated(
+		NotificationId id,
+		const TextWithTags &reply) {
 	onBeforeNotificationActivated(id);
 	if (const auto session = system()->findSession(id.contextId.sessionId)) {
 		if (session->windows().empty()) {
@@ -965,25 +1122,33 @@ void Manager::notificationActivated(NotificationId id, const TextWithTags &reply
 		}
 		if (!session->windows().empty()) {
 			const auto window = session->windows().front();
-			const auto history = session->data().history(id.contextId.peerId);
-			const auto item = history->owner().message(history->peer, id.msgId);
+			const auto history = session->data().history(
+				id.contextId.peerId);
+			const auto item = history->owner().message(
+				history->peer,
+				id.msgId);
 			const auto topic = item ? item->topic() : nullptr;
 			if (!reply.text.isEmpty()) {
-				const auto topicRootId = topic ? topic->rootId() : id.contextId.topicRootId;
-				const auto replyToId = (id.msgId > 0 && !history->peer->isUser() && id.msgId != topicRootId)
+				const auto topicRootId = topic
+					? topic->rootId()
+					: id.contextId.topicRootId;
+				const auto replyToId = (id.msgId > 0
+					&& !history->peer->isUser()
+					&& id.msgId != topicRootId)
 					? FullMsgId(history->peer->id, id.msgId)
 					: FullMsgId();
-				auto draft = std::make_unique<Data::Draft>(reply,
-														   FullReplyTo{
-															   .messageId = replyToId,
-															   .topicRootId = topicRootId,
-														   },
-														   MessageCursor{
-															   int(reply.text.size()),
-															   int(reply.text.size()),
-															   Ui::kQFixedMax,
-														   },
-														   Data::WebPageDraft());
+				auto draft = std::make_unique<Data::Draft>(
+					reply,
+					FullReplyTo{
+						.messageId = replyToId,
+						.topicRootId = topicRootId,
+					},
+					MessageCursor{
+						int(reply.text.size()),
+						int(reply.text.size()),
+						Ui::kQFixedMax,
+					},
+					Data::WebPageDraft());
 				history->setLocalDraft(std::move(draft));
 			}
 			window->widget()->showFromTray();
@@ -998,20 +1163,33 @@ void Manager::notificationActivated(NotificationId id, const TextWithTags &reply
 	}
 }
 
-void Manager::openNotificationMessage(not_null<History *> history, MsgId messageId) {
+void Manager::openNotificationMessage(
+		not_null<History*> history,
+		MsgId messageId) {
 	const auto item = history->owner().message(history->peer, messageId);
-	const auto openExactlyMessage = !history->peer->isBroadcast() && item && item->isRegular() &&
-		(item->out() || (item->mentionsMe() && !history->peer->isUser()));
+	const auto openExactlyMessage = !history->peer->isBroadcast()
+		&& item
+		&& item->isRegular()
+		&& (item->out() || (item->mentionsMe() && !history->peer->isUser()));
 	const auto topic = item ? item->topic() : nullptr;
 	const auto separate = Core::App().separateWindowFor(history->peer);
-	const auto window = separate ? separate->sessionController() : history->session().tryResolveWindow();
+	const auto window = separate
+		? separate->sessionController()
+		: history->session().tryResolveWindow();
 	const auto itemId = openExactlyMessage ? messageId : ShowAtUnreadMsgId;
 	if (window) {
 		if (topic) {
-			window->showSection(std::make_shared<HistoryView::RepliesMemento>(history, topic->rootId(), itemId),
-								SectionShow::Way::Forward);
+			window->showSection(
+				std::make_shared<HistoryView::RepliesMemento>(
+					history,
+					topic->rootId(),
+					itemId),
+				SectionShow::Way::Forward);
 		} else {
-			window->showPeerHistory(history->peer->id, SectionShow::Way::Forward, itemId);
+			window->showPeerHistory(
+				history->peer->id,
+				SectionShow::Way::Forward,
+				itemId);
 		}
 	}
 	if (topic) {
@@ -1021,7 +1199,9 @@ void Manager::openNotificationMessage(not_null<History *> history, MsgId message
 	}
 }
 
-void Manager::notificationReplied(NotificationId id, const TextWithTags &reply) {
+void Manager::notificationReplied(
+		NotificationId id,
+		const TextWithTags &reply) {
 	if (!id.contextId.sessionId || !id.contextId.peerId) {
 		return;
 	}
@@ -1033,15 +1213,20 @@ void Manager::notificationReplied(NotificationId id, const TextWithTags &reply) 
 	const auto history = session->data().history(id.contextId.peerId);
 	const auto item = history->owner().message(history->peer, id.msgId);
 	const auto topic = item ? item->topic() : nullptr;
-	const auto topicRootId = topic ? topic->rootId() : id.contextId.topicRootId;
+	const auto topicRootId = topic
+		? topic->rootId()
+		: id.contextId.topicRootId;
 
 	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
-	const auto replyToId = (id.msgId > 0 && !history->peer->isUser() && id.msgId != topicRootId) ? id.msgId
-		: history->peer->isForum()																 ? topicRootId
-																								 : MsgId(0);
+	const auto replyToId = (id.msgId > 0 && !history->peer->isUser()
+		&& id.msgId != topicRootId)
+		? id.msgId
+		: history->peer->isForum()
+		? topicRootId
+		: MsgId(0);
 	message.action.replyTo = {
-		.messageId = {replyToId ? history->peer->id : 0, replyToId},
+		.messageId = { replyToId ? history->peer->id : 0, replyToId },
 		.topicRootId = topic ? topic->rootId() : 0,
 	};
 	message.action.clearDraft = false;
@@ -1055,42 +1240,57 @@ void Manager::notificationReplied(NotificationId id, const TextWithTags &reply) 
 void NativeManager::doShowNotification(NotificationFields &&fields) {
 	const auto options = getNotificationOptions(
 		fields.item,
-		(fields.reactionFrom ? Data::ItemNotificationType::Reaction : Data::ItemNotificationType::Message));
+		(fields.reactionFrom
+			? Data::ItemNotificationType::Reaction
+			: Data::ItemNotificationType::Message));
 	const auto item = fields.item;
 	const auto peer = item->history()->peer;
 	const auto reactionFrom = fields.reactionFrom;
 	if (reactionFrom && options.hideNameAndPhoto) {
 		return;
 	}
-	const auto scheduled =
-		!options.hideNameAndPhoto && !reactionFrom && (item->out() || peer->isSelf()) && item->isFromScheduled();
-	const auto topicWithChat = [&]
-	{
+	const auto scheduled = !options.hideNameAndPhoto
+		&& !reactionFrom
+		&& (item->out() || peer->isSelf())
+		&& item->isFromScheduled();
+	const auto topicWithChat = [&] {
 		const auto name = peer->name();
 		const auto topic = item->topic();
 		return topic ? (topic->title() + u" ("_q + name + ')') : name;
 	};
-	const auto title = options.hideNameAndPhoto ? AppName.utf16()
-		: (scheduled && peer->isSelf())			? tr::lng_notification_reminder(tr::now)
-												: topicWithChat();
+	const auto title = options.hideNameAndPhoto
+		? AppName.utf16()
+		: (scheduled && peer->isSelf())
+		? tr::lng_notification_reminder(tr::now)
+		: topicWithChat();
 	const auto fullTitle = addTargetAccountName(title, &peer->session());
-	const auto subtitle = reactionFrom ? (reactionFrom != peer ? reactionFrom->name() : QString())
-		: options.hideNameAndPhoto	   ? QString()
-									   : item->notificationHeader();
+	const auto subtitle = reactionFrom
+		? (reactionFrom != peer ? reactionFrom->name() : QString())
+		: options.hideNameAndPhoto
+		? QString()
+		: item->notificationHeader();
 	const auto text = reactionFrom
-		? TextWithPermanentSpoiler(ComposeReactionNotification(item, fields.reactionId, options.hideMessageText))
-		: options.hideMessageText	  ? tr::lng_notification_preview(tr::now)
-		: (fields.forwardedCount > 1) ? tr::lng_forward_messages(tr::now, lt_count, fields.forwardedCount)
-		: item->groupId()			  ? tr::lng_in_dlg_album(tr::now)
-									  : TextWithForwardedChar(TextWithPermanentSpoiler(item->notificationText({
-																  .spoilerLoginCode = options.spoilerLoginCode,
-												  })),
-												  (fields.forwardedCount == 1));
+		? TextWithPermanentSpoiler(ComposeReactionNotification(
+			item,
+			fields.reactionId,
+			options.hideMessageText))
+		: options.hideMessageText
+		? tr::lng_notification_preview(tr::now)
+		: (fields.forwardedCount > 1)
+		? tr::lng_forward_messages(tr::now, lt_count, fields.forwardedCount)
+		: item->groupId()
+		? tr::lng_in_dlg_album(tr::now)
+		: TextWithForwardedChar(
+			TextWithPermanentSpoiler(item->notificationText({
+				.spoilerLoginCode = options.spoilerLoginCode,
+			})),
+			(fields.forwardedCount == 1));
 
 	// #TODO optimize
 	auto userpicView = item->history()->peer->createUserpicView();
 	const auto owner = &item->history()->owner();
-	const auto withSound = fields.soundId && Core::App().settings().soundNotify();
+	const auto withSound = fields.soundId
+		&& Core::App().settings().soundNotify();
 	const auto sound = withSound ? [=, id = *fields.soundId] {
 		return _localSoundCache.sound(id, [=] {
 			return Core::App().notifications().lookupSoundBytes(owner, id);
@@ -1098,25 +1298,27 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 			return Core::App().notifications().lookupSoundBytes(owner, 0);
 		});
 	} : Fn<NotificationSound()>();
-	doShowNativeNotification(
-		{
-			.peer = item->history()->peer,
-			.topicRootId = item->topicRootId(),
-			.itemId = item->id,
-			.title = scheduled ? WrapFromScheduled(fullTitle) : fullTitle,
-			.subtitle = subtitle,
-			.message = text,
-			.sound = sound,
-			.options = options,
-		},
-		userpicView);
+	doShowNativeNotification({
+		.peer = item->history()->peer,
+		.topicRootId = item->topicRootId(),
+		.itemId = item->id,
+		.title = scheduled ? WrapFromScheduled(fullTitle) : fullTitle,
+		.subtitle = subtitle,
+		.message = text,
+		.sound = sound,
+		.options = options,
+	}, userpicView);
 }
 
-bool NativeManager::forceHideDetails() const { return Core::App().screenIsLocked(); }
+bool NativeManager::forceHideDetails() const {
+	return Core::App().screenIsLocked();
+}
 
 System::~System() = default;
 
-QString WrapFromScheduled(const QString &text) { return QString::fromUtf8("\xF0\x9F\x93\x85 ") + text; }
+QString WrapFromScheduled(const QString &text) {
+	return QString::fromUtf8("\xF0\x9F\x93\x85 ") + text;
+}
 
 } // namespace Notifications
 } // namespace Window

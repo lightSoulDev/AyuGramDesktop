@@ -7,17 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/reaction_fly_animation.h"
 
-#include "base/random.h"
-#include "data/data_document.h"
-#include "data/data_document_media.h"
-#include "data/data_message_reactions.h"
-#include "data/data_session.h"
-#include "styles/style_chat.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
-#include "ui/text/text_custom_emoji.h"
+#include "data/data_message_reactions.h"
+#include "data/data_session.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "base/random.h"
+#include "styles/style_chat.h"
 
-// ViGram includes
+// AyuGram includes
 #include "ayu/utils/taptic_engine/taptic_engine.h"
 
 
@@ -44,8 +44,7 @@ ReactionFlyAnimationArgs ReactionFlyAnimationArgs::translated(QPoint point) cons
 }
 
 auto ReactionFlyAnimation::flyCallback() {
-	return [=]
-	{
+	return [=] {
 		if (!_fly.animating()) {
 			_flyIcon = QImage();
 			startAnimations();
@@ -57,8 +56,7 @@ auto ReactionFlyAnimation::flyCallback() {
 }
 
 auto ReactionFlyAnimation::callback() {
-	return [=]
-	{
+	return [=] {
 		if (_repaint) {
 			_repaint();
 
@@ -70,21 +68,30 @@ auto ReactionFlyAnimation::callback() {
 	};
 }
 
-ReactionFlyAnimation::ReactionFlyAnimation(not_null<::Data::Reactions *> owner,
-										   ReactionFlyAnimationArgs &&args,
-										   Fn<void()> repaint,
-										   int size,
-										   Data::CustomEmojiSizeTag customSizeTag)
-	: _owner(owner), _repaint(std::move(repaint)), _flyFrom(args.flyFrom), _scaleOutDuration(args.scaleOutDuration),
-	  _scaleOutTarget(args.scaleOutTarget), _forceFirstFrame(args.forceFirstFrame) {
+ReactionFlyAnimation::ReactionFlyAnimation(
+	not_null<::Data::Reactions*> owner,
+	ReactionFlyAnimationArgs &&args,
+	Fn<void()> repaint,
+	int size,
+	Data::CustomEmojiSizeTag customSizeTag)
+: _owner(owner)
+, _repaint(std::move(repaint))
+, _flyFrom(args.flyFrom)
+, _scaleOutDuration(args.scaleOutDuration)
+, _scaleOutTarget(args.scaleOutTarget)
+, _forceFirstFrame(args.forceFirstFrame) {
 	const auto &list = owner->list(::Data::Reactions::Type::All);
-	auto centerIcon = (DocumentData *) nullptr;
-	auto aroundAnimation = (DocumentData *) nullptr;
+	auto centerIcon = (DocumentData*)nullptr;
+	auto aroundAnimation = (DocumentData*)nullptr;
 	if (const auto customId = args.id.custom()) {
-		const auto esize = Data::FrameSizeFromTag(customSizeTag) / style::DevicePixelRatio();
+		const auto esize = Data::FrameSizeFromTag(customSizeTag)
+			/ style::DevicePixelRatio();
 		const auto data = &owner->owner();
 		const auto document = data->document(customId);
-		_custom = data->customEmojiManager().create(document, callback(), customSizeTag);
+		_custom = data->customEmojiManager().create(
+			document,
+			callback(),
+			customSizeTag);
 		_customSize = esize;
 		_centerSizeMultiplier = _customSize / float64(size);
 		aroundAnimation = owner->chooseGenericAnimation(document);
@@ -95,15 +102,19 @@ ReactionFlyAnimation::ReactionFlyAnimation(not_null<::Data::Reactions *> owner,
 		_centerSizeMultiplier = 0.5;
 	} else {
 		const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
-		if (i == end(list) /* || !i->centerIcon*/) {
+		if (i == end(list)/* || !i->centerIcon*/) {
 			return;
 		}
-		centerIcon = i->centerIcon ? not_null(i->centerIcon) : i->selectAnimation;
+		centerIcon = i->centerIcon
+			? not_null(i->centerIcon)
+			: i->selectAnimation;
 		aroundAnimation = i->aroundAnimation;
 		_centerSizeMultiplier = i->centerIcon ? 1. : 0.5;
 	}
-	const auto resolve = [&](std::unique_ptr<AnimatedIcon> &icon, DocumentData *document, int size)
-	{
+	const auto resolve = [&](
+			std::unique_ptr<AnimatedIcon> &icon,
+			DocumentData *document,
+			int size) {
 		if (!document) {
 			return false;
 		}
@@ -139,10 +150,15 @@ ReactionFlyAnimation::ReactionFlyAnimation(not_null<::Data::Reactions *> owner,
 ReactionFlyAnimation::~ReactionFlyAnimation() = default;
 
 QRect ReactionFlyAnimation::paintGetArea(
-	QPainter &p, QPoint origin, QRect target, const QColor &colored, QRect clip, crl::time now) const {
-	const auto scale = [&]
-	{
-		if (!_scaleOutDuration || (!_effect && !_noEffectScaleStarted)) {
+		QPainter &p,
+		QPoint origin,
+		QRect target,
+		const QColor &colored,
+		QRect clip,
+		crl::time now) const {
+	const auto scale = [&] {
+		if (!_scaleOutDuration
+			|| (!_effect && !_noEffectScaleStarted)) {
 			return 1.;
 		}
 		auto progress = _noEffectScaleAnimation.value(0.);
@@ -153,7 +169,9 @@ QRect ReactionFlyAnimation::paintGetArea(
 			}
 			const auto left = _effect->framesCount() - _effect->frameIndex();
 			const auto duration = left * 1000. / rate;
-			progress = (duration < _scaleOutDuration) ? (duration / double(_scaleOutDuration)) : 1.;
+			progress = (duration < _scaleOutDuration)
+				? (duration / double(_scaleOutDuration))
+				: 1.;
 		}
 		return (1. * progress + _scaleOutTarget * (1. - progress));
 	}();
@@ -168,10 +186,14 @@ QRect ReactionFlyAnimation::paintGetArea(
 	if (!_valid) {
 		return QRect();
 	} else if (_flyIcon.isNull()) {
-		const auto wide = QRect(target.topLeft() - QPoint(target.width(), target.height()) / 2, target.size() * 2);
+		const auto wide = QRect(
+			target.topLeft() - QPoint(target.width(), target.height()) / 2,
+			target.size() * 2);
 		const auto area = _miniCopies.empty()
 			? wide
-			: QRect(target.topLeft() - QPoint(target.width(), target.height()), target.size() * 3);
+			: QRect(
+				target.topLeft() - QPoint(target.width(), target.height()),
+				target.size() * 3);
 		if (clip.isEmpty() || area.intersects(clip)) {
 			paintCenterFrame(p, target, colored, now);
 			if (const auto effect = _effect.get()) {
@@ -187,13 +209,19 @@ QRect ReactionFlyAnimation::paintGetArea(
 	const auto from = _flyFrom.translated(origin);
 	const auto lshift = target.width() / 4;
 	const auto rshift = target.width() / 2 - lshift;
-	const auto margins = QMargins{lshift, lshift, rshift, rshift};
+	const auto margins = QMargins{ lshift, lshift, rshift, rshift };
 	target = target.marginsRemoved(margins);
 	const auto progress = _fly.value(1.);
-	const auto rect = QRect(anim::interpolate(from.x(), target.x(), progress),
-							computeParabolicTop(_cached, from.y(), target.y(), st::reactionFlyUp, progress),
-							anim::interpolate(from.width(), target.width(), progress),
-							anim::interpolate(from.height(), target.height(), progress));
+	const auto rect = QRect(
+		anim::interpolate(from.x(), target.x(), progress),
+		computeParabolicTop(
+			_cached,
+			from.y(),
+			target.y(),
+			st::reactionFlyUp,
+			progress),
+		anim::interpolate(from.width(), target.width(), progress),
+		anim::interpolate(from.height(), target.height(), progress));
 	const auto wide = rect.marginsAdded(margins);
 	if (clip.isEmpty() || wide.intersects(clip)) {
 		if (progress < 1.) {
@@ -209,35 +237,45 @@ QRect ReactionFlyAnimation::paintGetArea(
 	return wide;
 }
 
-void ReactionFlyAnimation::paintCenterFrame(QPainter &p, QRect target, const QColor &colored, crl::time now) const {
+void ReactionFlyAnimation::paintCenterFrame(
+		QPainter &p,
+		QRect target,
+		const QColor &colored,
+		crl::time now) const {
 	if (_effectOnly) {
 		return;
 	}
-	const auto size = QSize(int(base::SafeRound(target.width() * _centerSizeMultiplier)),
-							int(base::SafeRound(target.height() * _centerSizeMultiplier)));
+	const auto size = QSize(
+		int(base::SafeRound(target.width() * _centerSizeMultiplier)),
+		int(base::SafeRound(target.height() * _centerSizeMultiplier)));
 	if (_center) {
-		const auto rect = QRect(target.x() + (target.width() - size.width()) / 2,
-								target.y() + (target.height() - size.height()) / 2,
-								size.width(),
-								size.height());
+		const auto rect = QRect(
+			target.x() + (target.width() - size.width()) / 2,
+			target.y() + (target.height() - size.height()) / 2,
+			size.width(),
+			size.height());
 		p.drawImage(rect, _center->frame(st::windowFg->c));
 	} else if (_custom) {
 		const auto scaled = (size.width() != _customSize);
-		_custom->paint(p,
-					   {
-						   .textColor = colored,
-						   .size = {_customSize, _customSize},
-						   .now = now,
-						   .scale = (scaled ? (size.width() / float64(_customSize)) : 1.),
-						   .position = QPoint(target.x() + (target.width() - _customSize) / 2,
-											  target.y() + (target.height() - _customSize) / 2),
-						   .scaled = scaled,
-						   .internal = {.forceFirstFrame = _forceFirstFrame},
-					   });
+		_custom->paint(p, {
+			.textColor = colored,
+			.size = { _customSize, _customSize },
+			.now = now,
+			.scale = (scaled ? (size.width() / float64(_customSize)) : 1.),
+			.position = QPoint(
+				target.x() + (target.width() - _customSize) / 2,
+				target.y() + (target.height() - _customSize) / 2),
+			.scaled = scaled,
+			.internal = { .forceFirstFrame = _forceFirstFrame },
+		});
 	}
 }
 
-void ReactionFlyAnimation::paintMiniCopies(QPainter &p, QPoint center, const QColor &colored, crl::time now) const {
+void ReactionFlyAnimation::paintMiniCopies(
+		QPainter &p,
+		QPoint center,
+		const QColor &colored,
+		crl::time now) const {
 	Expects(_miniCopies.empty() || _custom != nullptr);
 
 	if (!_minis.animating()) {
@@ -247,46 +285,62 @@ void ReactionFlyAnimation::paintMiniCopies(QPainter &p, QPoint center, const QCo
 	const auto size = QSize(_customSize, _customSize);
 	const auto progress = _minis.value(1.);
 	const auto middle = center - QPoint(_customSize / 2, _customSize / 2);
-	const auto scaleIn = kMiniCopiesScaleInDuration / float64(kMiniCopiesDurationMax);
-	const auto scaleOut = kMiniCopiesScaleOutDuration / float64(kMiniCopiesDurationMax);
+	const auto scaleIn = kMiniCopiesScaleInDuration
+		/ float64(kMiniCopiesDurationMax);
+	const auto scaleOut = kMiniCopiesScaleOutDuration
+		/ float64(kMiniCopiesDurationMax);
 	auto context = Text::CustomEmoji::Context{
 		.textColor = colored,
 		.size = size,
 		.now = now,
 		.scaled = true,
-		.internal = {.forceFirstFrame = _forceFirstFrame},
+		.internal = { .forceFirstFrame = _forceFirstFrame },
 	};
 	for (const auto &mini : _miniCopies) {
 		if (progress >= mini.duration) {
 			continue;
 		}
 		const auto value = progress / mini.duration;
-		context.scale = (progress < scaleIn)		 ? (mini.maxScale * progress / scaleIn)
-			: (progress <= mini.duration - scaleOut) ? mini.maxScale
-													 : (mini.maxScale * (mini.duration - progress) / scaleOut);
-		context.position = middle +
-			QPoint(anim::interpolate(0, mini.finalX, value),
-				   computeParabolicTop(mini.cached, 0, mini.finalY, mini.flyUp, value));
+		context.scale = (progress < scaleIn)
+			? (mini.maxScale * progress / scaleIn)
+			: (progress <= mini.duration - scaleOut)
+			? mini.maxScale
+			: (mini.maxScale * (mini.duration - progress) / scaleOut);
+		context.position = middle + QPoint(
+			anim::interpolate(0, mini.finalX, value),
+			computeParabolicTop(
+				mini.cached,
+				0,
+				mini.finalY,
+				mini.flyUp,
+				value));
 		_custom->paint(p, context);
 	}
 }
 
-void ReactionFlyAnimation::generateMiniCopies(int size, float64 miniCopyMultiplier) {
+void ReactionFlyAnimation::generateMiniCopies(
+		int size,
+		float64 miniCopyMultiplier) {
 	if (!_custom) {
 		return;
 	}
-	const auto random = []
-	{
+	const auto random = [] {
 		constexpr auto count = 16384;
 		return base::RandomIndex(count) / float64(count - 1);
 	};
-	const auto between = [](int a, int b)
-	{ return (a > b) ? (b + base::RandomIndex(a - b + 1)) : (a + base::RandomIndex(b - a + 1)); };
+	const auto between = [](int a, int b) {
+		return (a > b)
+			? (b + base::RandomIndex(a - b + 1))
+			: (a + base::RandomIndex(b - a + 1));
+	};
 	_miniCopies.reserve(kMiniCopies);
 	for (auto i = 0; i != kMiniCopies; ++i) {
-		const auto scale = kMiniCopiesMaxScaleMin + (kMiniCopiesMaxScaleMax - kMiniCopiesMaxScaleMin) * random();
+		const auto scale = kMiniCopiesMaxScaleMin
+			+ (kMiniCopiesMaxScaleMax - kMiniCopiesMaxScaleMin) * random();
 		const auto maxScale = scale * miniCopyMultiplier;
-		const auto duration = between(kMiniCopiesDurationMin, kMiniCopiesDurationMax);
+		const auto duration = between(
+			kMiniCopiesDurationMin,
+			kMiniCopiesDurationMax);
 		const auto maxSize = int(std::ceil(maxScale * _customSize));
 		const auto maxHalf = (maxSize + 1) / 2;
 		const auto flyUpTill = std::max(size - maxHalf, size / 4 + 1);
@@ -300,7 +354,12 @@ void ReactionFlyAnimation::generateMiniCopies(int size, float64 miniCopyMultipli
 	}
 }
 
-int ReactionFlyAnimation::computeParabolicTop(Parabolic &cache, int from, int to, int top, float64 progress) const {
+int ReactionFlyAnimation::computeParabolicTop(
+		Parabolic &cache,
+		int from,
+		int to,
+		int top,
+		float64 progress) const {
 	const auto t = progress;
 
 	// result = a * t * t + b * t + c
@@ -318,7 +377,11 @@ int ReactionFlyAnimation::computeParabolicTop(Parabolic &cache, int from, int to
 		const auto y_0 = std::min(0, y_1) - top;
 		const auto ratio = y_1 ? (float64(y_0) / y_1) : 0.;
 		const auto root = y_1 ? sqrt(ratio * (ratio - 1)) : 0.;
-		const auto t_0 = !y_1 ? 0.5 : (y_1 > 0) ? (ratio + root) : (ratio - root);
+		const auto t_0 = !y_1
+			? 0.5
+			: (y_1 > 0)
+			? (ratio + root)
+			: (ratio - root);
 		const auto a = y_1 ? (y_1 / (1 - 2 * t_0)) : (-4 * y_0);
 		const auto b = y_1 - a;
 		cache.key = y_1;
@@ -344,16 +407,25 @@ void ReactionFlyAnimation::startAnimations() {
 	}
 }
 
-void ReactionFlyAnimation::setRepaintCallback(Fn<void()> repaint) { _repaint = std::move(repaint); }
+void ReactionFlyAnimation::setRepaintCallback(Fn<void()> repaint) {
+	_repaint = std::move(repaint);
+}
 
-bool ReactionFlyAnimation::flying() const { return !_flyIcon.isNull(); }
+bool ReactionFlyAnimation::flying() const {
+	return !_flyIcon.isNull();
+}
 
-float64 ReactionFlyAnimation::flyingProgress() const { return _fly.value(1.); }
+float64 ReactionFlyAnimation::flyingProgress() const {
+	return _fly.value(1.);
+}
 
 bool ReactionFlyAnimation::finished() const {
-	return !_valid ||
-		(_flyIcon.isNull() && (!_center || !_center->animating()) && (!_effect || !_effect->animating()) &&
-		 !_noEffectScaleAnimation.animating() && !_minis.animating());
+	return !_valid
+		|| (_flyIcon.isNull()
+			&& (!_center || !_center->animating())
+			&& (!_effect || !_effect->animating())
+			&& !_noEffectScaleAnimation.animating()
+			&& !_minis.animating());
 }
 
 ReactionFlyCenter ReactionFlyAnimation::takeCenter() {
@@ -367,4 +439,4 @@ ReactionFlyCenter ReactionFlyAnimation::takeCenter() {
 	};
 }
 
-} // namespace Ui
+} // namespace HistoryView::Reactions

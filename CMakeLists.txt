@@ -30,8 +30,8 @@ endif()
 project(Telegram
     LANGUAGES ${project_langs}
     VERSION ${desktop_app_version_cmake}
-    DESCRIPTION "ViGram Desktop"
-    HOMEPAGE_URL "https://t.me/vi_in_frame"
+    DESCRIPTION "AyuGram Desktop"
+    HOMEPAGE_URL "https://ayugram.one"
 )
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Telegram)
 

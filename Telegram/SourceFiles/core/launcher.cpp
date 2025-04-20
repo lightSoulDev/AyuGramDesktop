@@ -7,16 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/launcher.h"
 
-#include "base/concurrent_timer.h"
-#include "base/options.h"
-#include "base/platform/base_platform_file_utilities.h"
-#include "base/platform/base_platform_info.h"
-#include "core/crash_reports.h"
-#include "core/sandbox.h"
-#include "core/update_checker.h"
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
+#include "base/options.h"
+#include "base/platform/base_platform_info.h"
+#include "base/platform/base_platform_file_utilities.h"
 #include "ui/main_queue_processor.h"
+#include "core/crash_reports.h"
+#include "core/update_checker.h"
+#include "core/sandbox.h"
+#include "base/concurrent_timer.h"
+#include "base/options.h"
 
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QStandardPaths>
@@ -34,8 +35,7 @@ base::options::toggle OptionFreeType({
 	.restartRequired = true,
 });
 
-class FilteredCommandLineArguments
-{
+class FilteredCommandLineArguments {
 public:
 	FilteredCommandLineArguments(int argc, char **argv);
 
@@ -47,12 +47,15 @@ private:
 
 	int _count = 0;
 	std::vector<QByteArray> _owned;
-	std::vector<char *> _arguments;
+	std::vector<char*> _arguments;
 
 	void pushArgument(const char *text);
+
 };
 
-FilteredCommandLineArguments::FilteredCommandLineArguments(int argc, char **argv) {
+FilteredCommandLineArguments::FilteredCommandLineArguments(
+	int argc,
+	char **argv) {
 	// For now just pass only the first argument, the executable path.
 	for (auto i = 0; i != kForwardArgumentCount; ++i) {
 		pushArgument(argv[i]);
@@ -77,14 +80,18 @@ int &FilteredCommandLineArguments::count() {
 	return _count;
 }
 
-char **FilteredCommandLineArguments::values() { return _arguments.data(); }
+char **FilteredCommandLineArguments::values() {
+	return _arguments.data();
+}
 
 void FilteredCommandLineArguments::pushArgument(const char *text) {
 	_owned.emplace_back(text);
 	_arguments.push_back(_owned.back().data());
 }
 
-QString DebugModeSettingPath() { return cWorkingDir() + u"tdata/withdebug"_q; }
+QString DebugModeSettingPath() {
+	return cWorkingDir() + u"tdata/withdebug"_q;
+}
 
 void WriteDebugModeSetting() {
 	auto file = QFile(DebugModeSettingPath());
@@ -113,7 +120,8 @@ void ComputeDebugMode() {
 }
 
 void ComputeExternalUpdater() {
-	auto locations = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
+	auto locations = QStandardPaths::standardLocations(
+		QStandardPaths::AppDataLocation);
 	if (locations.isEmpty()) {
 		locations << QString();
 	}
@@ -137,7 +145,9 @@ void ComputeExternalUpdater() {
 	}
 }
 
-QString InstallBetaVersionsSettingPath() { return cWorkingDir() + u"tdata/devversion"_q; }
+QString InstallBetaVersionsSettingPath() {
+	return cWorkingDir() + u"tdata/devversion"_q;
+}
 
 void WriteInstallBetaVersionsSetting() {
 	QFile f(InstallBetaVersionsSettingPath());
@@ -164,7 +174,9 @@ void ComputeInstallationTag() {
 	InstallationTag = 0;
 	auto file = QFile(cWorkingDir() + u"tdata/usertag"_q);
 	if (file.open(QIODevice::ReadOnly)) {
-		const auto result = file.read(reinterpret_cast<char *>(&InstallationTag), sizeof(uint64));
+		const auto result = file.read(
+			reinterpret_cast<char*>(&InstallationTag),
+			sizeof(uint64));
 		if (result != sizeof(uint64)) {
 			InstallationTag = 0;
 		}
@@ -178,7 +190,9 @@ void ComputeInstallationTag() {
 		} while (!InstallationTag);
 
 		if (file.open(QIODevice::WriteOnly)) {
-			file.write(reinterpret_cast<char *>(&InstallationTag), sizeof(uint64));
+			file.write(
+				reinterpret_cast<char*>(&InstallationTag),
+				sizeof(uint64));
 			file.close();
 		}
 	}
@@ -192,7 +206,9 @@ bool MoveLegacyAlphaFolder(const QString &folder, const QString &file) {
 		const auto newFile = was + "/tdata/alpha";
 		if (QFile::exists(oldFile) && !QFile::exists(newFile)) {
 			if (!QFile(oldFile).copy(newFile)) {
-				LOG(("FATAL: Could not copy '%1' to '%2'").arg(oldFile, newFile));
+				LOG(("FATAL: Could not copy '%1' to '%2'").arg(
+					oldFile,
+					newFile));
 				return false;
 			}
 		}
@@ -205,8 +221,8 @@ bool MoveLegacyAlphaFolder(const QString &folder, const QString &file) {
 }
 
 bool MoveLegacyAlphaFolder() {
-	if (!MoveLegacyAlphaFolder(u"TelegramAlpha_data"_q, u"alpha"_q) ||
-		!MoveLegacyAlphaFolder(u"TelegramBeta_data"_q, u"beta"_q)) {
+	if (!MoveLegacyAlphaFolder(u"TelegramAlpha_data"_q, u"alpha"_q)
+		|| !MoveLegacyAlphaFolder(u"TelegramBeta_data"_q, u"beta"_q)) {
 		return false;
 	}
 	return true;
@@ -226,7 +242,8 @@ bool CheckPortableVersionFolder() {
 		QDir().mkpath(cWorkingDir() + u"tdata"_q);
 		cSetAlphaPrivateKey(QByteArray(AlphaPrivateKey));
 		if (!key.open(QIODevice::WriteOnly)) {
-			LOG(("FATAL: Could not open '%1' for writing private key!").arg(key.fileName()));
+			LOG(("FATAL: Could not open '%1' for writing private key!"
+				).arg(key.fileName()));
 			return false;
 		}
 		QDataStream dataStream(&key);
@@ -244,8 +261,8 @@ bool CheckPortableVersionFolder() {
 
 	if (!key.open(QIODevice::ReadOnly)) {
 		LOG(("FATAL: could not open '%1' for reading private key. "
-			 "Delete it or reinstall private alpha version.")
-				.arg(key.fileName()));
+			"Delete it or reinstall private alpha version."
+			).arg(key.fileName()));
 		return false;
 	}
 	QDataStream dataStream(&key);
@@ -256,8 +273,8 @@ bool CheckPortableVersionFolder() {
 	dataStream >> v >> k;
 	if (dataStream.status() != QDataStream::Ok || k.isEmpty()) {
 		LOG(("FATAL: '%1' is corrupted. "
-			 "Delete it or reinstall private alpha version.")
-				.arg(key.fileName()));
+			"Delete it or reinstall private alpha version."
+			).arg(key.fileName()));
 		return false;
 	}
 	cSetAlphaVersion(AppVersion * 1000ULL);
@@ -286,20 +303,25 @@ std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 }
 
 Launcher::Launcher(int argc, char *argv[])
-	: _argc(argc), _argv(argv), _arguments(readArguments(_argc, _argv)), _baseIntegration(_argc, _argv),
-	  _initialWorkingDir(QDir::currentPath() + '/') {
+: _argc(argc)
+, _argv(argv)
+, _arguments(readArguments(_argc, _argv))
+, _baseIntegration(_argc, _argv)
+, _initialWorkingDir(QDir::currentPath() + '/') {
 	crl::toggle_fp_exceptions(true);
 
 	base::Integration::Set(&_baseIntegration);
 }
 
-Launcher::~Launcher() { InstanceSetter::Instance = nullptr; }
+Launcher::~Launcher() {
+	InstanceSetter::Instance = nullptr;
+}
 
 void Launcher::init() {
 	prepareSettings();
 	initQtMessageLogging();
 
-	QApplication::setApplicationName(u"ViGramDesktop"_q);
+	QApplication::setApplicationName(u"AyuGramDesktop"_q);
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 	// fallback session management is useless for tdesktop since it doesn't have
@@ -324,9 +346,11 @@ void Launcher::initHighDpi() {
 #endif // Qt < 6.0.0
 
 	if (OptionFractionalScalingEnabled.value()) {
-		QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+		QApplication::setHighDpiScaleFactorRoundingPolicy(
+			Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 	} else {
-		QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::RoundPreferFloor);
+		QApplication::setHighDpiScaleFactorRoundingPolicy(
+			Qt::HighDpiScaleFactorRoundingPolicy::RoundPreferFloor);
 	}
 }
 
@@ -347,14 +371,19 @@ int Launcher::exec() {
 	initHighDpi();
 
 	if (Logs::DebugEnabled()) {
-		const auto openalLogPath = QDir::toNativeSeparators(cWorkingDir() + u"DebugLogs/last_openal_log.txt"_q);
+		const auto openalLogPath = QDir::toNativeSeparators(
+			cWorkingDir() + u"DebugLogs/last_openal_log.txt"_q);
 
 		qputenv("ALSOFT_LOGLEVEL", "3");
 
 #ifdef Q_OS_WIN
-		_wputenv_s(L"ALSOFT_LOGFILE", openalLogPath.toStdWString().c_str());
+		_wputenv_s(
+			L"ALSOFT_LOGFILE",
+			openalLogPath.toStdWString().c_str());
 #else // Q_OS_WIN
-		qputenv("ALSOFT_LOGFILE", QFile::encodeName(openalLogPath));
+		qputenv(
+			"ALSOFT_LOGFILE",
+			QFile::encodeName(openalLogPath));
 #endif // !Q_OS_WIN
 	}
 
@@ -396,7 +425,7 @@ bool Launcher::validateCustomWorkingDir() {
 }
 
 void Launcher::workingFolderReady() {
-	srand((unsigned int) time(nullptr));
+	srand((unsigned int)time(nullptr));
 
 	ComputeDebugMode();
 	ComputeExternalUpdater();
@@ -404,11 +433,17 @@ void Launcher::workingFolderReady() {
 	ComputeInstallationTag();
 }
 
-void Launcher::writeDebugModeSetting() { WriteDebugModeSetting(); }
+void Launcher::writeDebugModeSetting() {
+	WriteDebugModeSetting();
+}
 
-void Launcher::writeInstallBetaVersionsSetting() { WriteInstallBetaVersionsSetting(); }
+void Launcher::writeInstallBetaVersionsSetting() {
+	WriteInstallBetaVersionsSetting();
+}
 
-bool Launcher::checkPortableVersionFolder() { return CheckPortableVersionFolder(); }
+bool Launcher::checkPortableVersionFolder() {
+	return CheckPortableVersionFolder();
+}
 
 QStringList Launcher::readArguments(int argc, char *argv[]) const {
 	Expects(argc >= 0);
@@ -425,11 +460,17 @@ QStringList Launcher::readArguments(int argc, char *argv[]) const {
 	return result;
 }
 
-const QStringList &Launcher::arguments() const { return _arguments; }
+const QStringList &Launcher::arguments() const {
+	return _arguments;
+}
 
-QString Launcher::initialWorkingDir() const { return _initialWorkingDir; }
+QString Launcher::initialWorkingDir() const {
+	return _initialWorkingDir;
+}
 
-bool Launcher::customWorkingDir() const { return !_customWorkingDir.isEmpty(); }
+bool Launcher::customWorkingDir() const {
+	return !_customWorkingDir.isEmpty();
+}
 
 void Launcher::prepareSettings() {
 	auto path = base::Platform::CurrentExecutablePath(_argc, _argv);
@@ -443,76 +484,82 @@ void Launcher::prepareSettings() {
 
 void Launcher::initQtMessageLogging() {
 	static QtMessageHandler OriginalMessageHandler = nullptr;
-	OriginalMessageHandler = qInstallMessageHandler(
-		[](QtMsgType type, const QMessageLogContext &context, const QString &msg)
-		{
-			if (OriginalMessageHandler) {
-				OriginalMessageHandler(type, context, msg);
+	OriginalMessageHandler = qInstallMessageHandler([](
+			QtMsgType type,
+			const QMessageLogContext &context,
+			const QString &msg) {
+		if (OriginalMessageHandler) {
+			OriginalMessageHandler(type, context, msg);
+		}
+		if (Logs::DebugEnabled() || !Logs::started()) {
+			if (!Logs::WritingEntry()) {
+				// Sometimes Qt logs something inside our own logging.
+				LOG((msg));
 			}
-			if (Logs::DebugEnabled() || !Logs::started()) {
-				if (!Logs::WritingEntry()) {
-					// Sometimes Qt logs something inside our own logging.
-					LOG((msg));
-				}
-			}
-		});
+		}
+	});
 }
 
-uint64 Launcher::installationTag() const { return InstallationTag; }
+uint64 Launcher::installationTag() const {
+	return InstallationTag;
+}
 
 void Launcher::processArguments() {
-	enum class KeyFormat
-	{
+	enum class KeyFormat {
 		NoValues,
 		OneValue,
 		AllLeftValues,
 	};
-	auto parseMap = std::map<QByteArray, KeyFormat>{
-		{"-debug", KeyFormat::NoValues},
-		{"-key", KeyFormat::OneValue},
-		{"-autostart", KeyFormat::NoValues},
-		{"-fixprevious", KeyFormat::NoValues},
-		{"-cleanup", KeyFormat::NoValues},
-		{"-noupdate", KeyFormat::NoValues},
-		{"-tosettings", KeyFormat::NoValues},
-		{"-startintray", KeyFormat::NoValues},
-		{"-quit", KeyFormat::NoValues},
-		{"-ghost", KeyFormat::NoValues},
-		{"-sendpath", KeyFormat::AllLeftValues},
-		{"-workdir", KeyFormat::OneValue},
-		{"--", KeyFormat::OneValue},
-		{"-scale", KeyFormat::OneValue},
+	auto parseMap = std::map<QByteArray, KeyFormat> {
+		{ "-debug"          , KeyFormat::NoValues },
+		{ "-key"            , KeyFormat::OneValue },
+		{ "-autostart"      , KeyFormat::NoValues },
+		{ "-fixprevious"    , KeyFormat::NoValues },
+		{ "-cleanup"        , KeyFormat::NoValues },
+		{ "-noupdate"       , KeyFormat::NoValues },
+		{ "-tosettings"     , KeyFormat::NoValues },
+		{ "-startintray"    , KeyFormat::NoValues },
+		{ "-quit"           , KeyFormat::NoValues },
+		{ "-ghost"          , KeyFormat::NoValues },
+		{ "-sendpath"       , KeyFormat::AllLeftValues },
+		{ "-workdir"        , KeyFormat::OneValue },
+		{ "--"              , KeyFormat::OneValue },
+		{ "-scale"          , KeyFormat::OneValue },
 	};
 	auto parseResult = QMap<QByteArray, QStringList>();
 	auto parsingKey = QByteArray();
 	auto parsingFormat = KeyFormat::NoValues;
 	for (const auto &argument : std::as_const(_arguments)) {
 		switch (parsingFormat) {
-			case KeyFormat::OneValue: {
-				parseResult[parsingKey] = QStringList(argument.mid(0, 8192));
-				parsingFormat = KeyFormat::NoValues;
-			} break;
-			case KeyFormat::AllLeftValues: {
-				parseResult[parsingKey].push_back(argument.mid(0, 8192));
-			} break;
-			case KeyFormat::NoValues: {
-				parsingKey = argument.toLatin1();
-				auto it = parseMap.find(parsingKey);
-				if (it != parseMap.end()) {
-					parsingFormat = it->second;
-					parseResult[parsingKey] = QStringList();
-				}
-			} break;
+		case KeyFormat::OneValue: {
+			parseResult[parsingKey] = QStringList(argument.mid(0, 8192));
+			parsingFormat = KeyFormat::NoValues;
+		} break;
+		case KeyFormat::AllLeftValues: {
+			parseResult[parsingKey].push_back(argument.mid(0, 8192));
+		} break;
+		case KeyFormat::NoValues: {
+			parsingKey = argument.toLatin1();
+			auto it = parseMap.find(parsingKey);
+			if (it != parseMap.end()) {
+				parsingFormat = it->second;
+				parseResult[parsingKey] = QStringList();
+			}
+		} break;
 		}
 	}
 
 	static const auto RegExp = QRegularExpression("[^a-z0-9\\-_]");
 	gDebugMode = parseResult.contains("-debug");
-	gKeyFile = parseResult.value("-key", {}).join(QString()).toLower().replace(RegExp, {});
+	gKeyFile = parseResult
+		.value("-key", {})
+		.join(QString())
+		.toLower()
+		.replace(RegExp, {});
 	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart
-		: parseResult.contains("-fixprevious")		 ? LaunchModeFixPrevious
-		: parseResult.contains("-cleanup")			 ? LaunchModeCleanup
-													 : LaunchModeNormal;
+		: parseResult.contains("-fixprevious") ? LaunchModeFixPrevious
+		: parseResult.contains("-cleanup") ? LaunchModeCleanup
+		: LaunchModeNormal;
 	gNoStartUpdate = parseResult.contains("-noupdate");
 	gStartToSettings = parseResult.contains("-tosettings");
 	gStartInTray = parseResult.contains("-startintray");
@@ -529,7 +576,9 @@ void Launcher::processArguments() {
 	if (scaleKey.size() > 0) {
 		using namespace style;
 		const auto value = scaleKey[0].toInt();
-		gConfigScale = ((value < kScaleMin) || (value > kScaleMax)) ? kScaleAuto : value;
+		gConfigScale = ((value < kScaleMin) || (value > kScaleMax))
+			? kScaleAuto
+			: value;
 	}
 }
 

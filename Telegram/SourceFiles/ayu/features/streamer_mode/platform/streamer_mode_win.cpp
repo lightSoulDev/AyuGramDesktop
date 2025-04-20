@@ -1,4 +1,4 @@
-// This is the source code of ViGram for Desktop.
+// This is the source code of AyuGram for Desktop.
 //
 // We do not and cannot prevent the use of our code,
 // but be respectful and credit the original author.
@@ -13,13 +13,15 @@
 namespace AyuFeatures::StreamerMode::Impl {
 
 void enableHook() {
-	Core::App().enumerateWindows([&](not_null<Window::Controller *> w)
-								 { SetWindowDisplayAffinity(w->widget()->psHwnd(), WDA_EXCLUDEFROMCAPTURE); });
+	Core::App().enumerateWindows([&](not_null<Window::Controller*> w) {
+		SetWindowDisplayAffinity(w->widget()->psHwnd(), WDA_EXCLUDEFROMCAPTURE);
+	});
 }
 
 void disableHook() {
-	Core::App().enumerateWindows([&](not_null<Window::Controller *> w)
-								 { SetWindowDisplayAffinity(w->widget()->psHwnd(), WDA_NONE); });
+	Core::App().enumerateWindows([&](not_null<Window::Controller*> w) {
+		SetWindowDisplayAffinity(w->widget()->psHwnd(), WDA_NONE);
+	});
 }
 
 void hideWidgetWindow(QWidget *widget) {
@@ -32,4 +34,4 @@ void showWidgetWindow(QWidget *widget) {
 	SetWindowDisplayAffinity(handle, WDA_NONE);
 }
 
-} // namespace AyuFeatures::StreamerMode::Impl
+}
